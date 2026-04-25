@@ -1,0 +1,12 @@
+[Unit]
+Description=Restore fake hardware clock
+DefaultDependencies=no
+Before=systemd-timesyncd.service
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/fake-hwclock load
+
+[Install]
+WantedBy=sysinit.target

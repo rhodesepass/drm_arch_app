@@ -1,0 +1,16 @@
+[Unit]
+Description=zram compressed swap (highest priority)
+DefaultDependencies=no
+After=systemd-modules-load.service systemd-remount-fs.service local-fs.target
+Before=basic.target epass-firstboot-select.service
+Conflicts=shutdown.target
+Before=shutdown.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c '    modprobe zram 2>/dev/null || true;     if [ ! -e /sys/block/zram0 ]; then echo "zram unavailable, skipping"; exit 0; fi;     swapoff /dev/zram0 2>/dev/null || true;     echo 1 > /sys/block/zram0/reset 2>/dev/null || true;     if [ -w /sys/block/zram0/comp_algorithm ]; then echo lzo > /sys/block/zram0/comp_algorithm 2>/dev/null || true; fi;     echo 64M > /sys/block/zram0/disksize &&     mkswap /dev/zram0 &&     swapon -p 100 /dev/zram0'
+ExecStop=/bin/sh -c 'if [ -e /sys/block/zram0 ]; then swapoff /dev/zram0 2>/dev/null || true; echo 1 > /sys/block/zram0/reset 2>/dev/null || true; fi'
+
+[Install]
+WantedBy=basic.target

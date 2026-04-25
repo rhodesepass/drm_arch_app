@@ -1,0 +1,4 @@
+if &term =~# '^\%(xterm\|screen\|tmux\|rxvt\|vt100\|linux\|putty\)'
+  set ttimeout
+  set ttimeoutlen=40
+endif

@@ -1,0 +1,11 @@
+[Unit]
+Description=Save fake hardware clock on shutdown
+DefaultDependencies=no
+Before=shutdown.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/fake-hwclock save
+
+[Install]
+WantedBy=shutdown.target

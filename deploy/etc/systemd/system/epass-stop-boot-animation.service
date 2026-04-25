@@ -1,0 +1,10 @@
+[Unit]
+Description=Stop ArkEPass Boot Animation
+After=epass-boot-animation.service
+ConditionPathExists=/run/epass/gui-alive
+ConditionPathExists=/run/epass/boot-animation.pid
+
+[Service]
+Type=oneshot
+ExecStart=-/usr/local/bin/epass-boot-mark.sh boot-animation:stop-requested
+ExecStart=/bin/sh -eu -c 'pid_file=/run/epass/boot-animation.pid; [ -r "$pid_file" ] || exit 0; pid="$(cat "$pid_file" 2>/dev/null || true)"; case "$pid" in ""|*[!0-9]*) exit 0 ;; esac; kill -TERM "$pid" 2>/dev/null || exit 0; /usr/local/bin/epass-boot-mark.sh boot-animation:stop-signal-sent || true'

@@ -1,0 +1,15 @@
+[Unit]
+Description=Mount ArkEPass shared data partition
+After=local-fs.target systemd-remount-fs.service systemd-udev-trigger.service
+Before=epass-usb-mode.service drm-arch-app.service sshd.service
+RequiresMountsFor=/root
+ConditionKernelCommandLine=!epass.firstboot=1
+ConditionKernelCommandLine=!epass.resize=1
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/epass-data-mount.sh
+
+[Install]
+WantedBy=multi-user.target

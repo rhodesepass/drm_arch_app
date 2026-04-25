@@ -1,0 +1,18 @@
+#!/bin/sh
+# fake-hwclock — save/restore system time to file (no hardware RTC needed)
+FILE=/etc/fake-hwclock.data
+case "$1" in
+    save)
+        date -u '+%Y-%m-%d %H:%M:%S' > "$FILE"
+        echo "Time saved: $(cat $FILE)"
+        ;;
+    load)
+        if [ -f "$FILE" ]; then
+            date -u -s "$(cat $FILE)" 2>/dev/null
+            echo "Time restored: $(cat $FILE)"
+        fi
+        ;;
+    *)
+        echo "Usage: fake-hwclock {save|load}"
+        ;;
+esac

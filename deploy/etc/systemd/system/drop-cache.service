@@ -1,0 +1,6 @@
+[Unit]
+Description=Drop kernel caches (64MB system)
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'sync && echo 3 > /proc/sys/vm/drop_caches'

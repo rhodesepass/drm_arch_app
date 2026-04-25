@@ -1,0 +1,15 @@
+[Unit]
+Description=Apply persisted ArkEPass USB gadget mode
+After=local-fs.target sys-kernel-config.mount epass-firstboot-select.service epass-data-mount.service
+Requires=sys-kernel-config.mount
+Before=drm-arch-app.service sshd.service
+ConditionKernelCommandLine=!epass.firstboot=1
+ConditionKernelCommandLine=!epass.resize=1
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/epass-usb-mode
+
+[Install]
+WantedBy=multi-user.target

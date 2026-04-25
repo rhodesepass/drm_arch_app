@@ -1,0 +1,13 @@
+[Unit]
+Description=Screen type R/B swap setup
+After=sysinit.target epass-boot-animation.service epass-firstboot-select.service
+Before=drm-arch-app.service
+ConditionPathExists=/etc/epass-firstboot/configured
+ConditionKernelCommandLine=!epass.firstboot=1
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/screen-detect.sh
+
+[Install]
+WantedBy=multi-user.target

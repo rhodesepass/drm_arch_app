@@ -1,0 +1,19 @@
+[Unit]
+Description=ArkEPass Boot Animation Player
+After=local-fs.target systemd-udev-trigger.service
+Before=drm-arch-app.service serial-getty@ttyS0.service
+ConditionPathExists=/root/splash/splash.splash
+ConditionPathExists=/etc/epass-firstboot/configured
+ConditionKernelCommandLine=!epass.firstboot=1
+
+[Service]
+Type=exec
+ExecStartPre=-/usr/local/bin/epass-boot-mark.sh boot-animation:start
+ExecStart=/usr/local/bin/fb-splash.sh /root/splash/splash.splash
+ExecStopPost=-/usr/local/bin/epass-boot-mark.sh boot-animation:done
+ExecStopPost=-/bin/rm -f /run/epass/boot-animation.pid
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=basic.target

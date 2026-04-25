@@ -1,0 +1,31 @@
+[Unit]
+Description=ArkEPass DRM App
+Requires=screen-detect.service
+Wants=epass-data-mount.service
+Wants=epass-usb-mode.service
+RequiresMountsFor=/assets /app /dispimg /root/res /root
+After=local-fs.target screen-detect.service cpu-overclock.service epass-boot-animation.service epass-data-mount.service epass-usb-mode.service
+Conflicts=getty@tty1.service
+StartLimitIntervalSec=60
+StartLimitBurst=3
+OnFailure=epass-gui-fallback.service
+
+[Service]
+Type=simple
+ExecCondition=/usr/local/bin/epass-gui-should-start.sh
+ExecStartPre=-/bin/rm -f /run/epass/gui-alive
+ExecStartPre=-/usr/local/bin/epass-boot-mark.sh drm-arch-app:service-pre-start
+ExecStartPre=/usr/local/bin/epass-gui-preflight.sh
+ExecStartPre=/bin/sh -c 'for v in /sys/class/vtconsole/vtcon*/bind; do echo 0 > "$v" 2>/dev/null || true; done'
+ExecStart=/usr/local/bin/drm-arch-app-runner.sh
+ExecStartPost=-/usr/local/bin/epass-boot-mark.sh drm-arch-app:service-spawned
+Restart=on-failure
+RestartSec=5
+EnvironmentFile=-/etc/epass.conf
+Environment=HOME=/root
+SupplementaryGroups=video input
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

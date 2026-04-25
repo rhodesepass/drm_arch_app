@@ -1,0 +1,15 @@
+[Unit]
+Description=ArkEPass runtime swapfile setup
+After=local-fs.target systemd-remount-fs.service zram-swap.service drm-arch-app.service
+ConditionKernelCommandLine=!epass.firstboot=1
+ConditionKernelCommandLine=!epass.resize=1
+
+[Service]
+Type=oneshot
+Nice=19
+IOSchedulingClass=idle
+Environment=EPASS_ENABLE_SWAPFILE=yes
+ExecStart=/usr/local/bin/epass-swapfile-setup.sh
+
+[Install]
+WantedBy=multi-user.target

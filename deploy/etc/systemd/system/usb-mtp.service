@@ -1,0 +1,12 @@
+[Unit]
+Description=USB MTP File Transfer Gadget
+After=sys-kernel-config.mount
+Requires=sys-kernel-config.mount
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/usbctl.sh mtp
+
+[Install]
+WantedBy=multi-user.target

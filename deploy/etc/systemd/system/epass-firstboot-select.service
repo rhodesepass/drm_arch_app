@@ -1,0 +1,21 @@
+[Unit]
+Description=ArkEPass first boot hardware and screen selection
+DefaultDependencies=no
+After=local-fs.target systemd-remount-fs.service systemd-udev-trigger.service
+Before=basic.target multi-user.target screen-detect.service serial-getty@ttyS0.service getty@tty1.service usb-mtp.service sshd.service
+Conflicts=getty@tty1.service usb-mtp.service sshd.service
+ConditionKernelCommandLine=epass.firstboot=1
+SuccessAction=reboot
+
+[Service]
+Type=oneshot
+ExecCondition=/usr/local/bin/epass-firstboot-select --needed
+ExecStartPre=-/usr/local/bin/epass-boot-mark.sh firstboot-select:start
+ExecStartPre=-/usr/bin/systemctl stop getty@tty1.service
+ExecStart=/usr/local/bin/epass-firstboot-select
+StandardOutput=journal
+StandardError=journal
+RemainAfterExit=no
+
+[Install]
+WantedBy=multi-user.target

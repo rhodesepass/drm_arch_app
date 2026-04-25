@@ -1,0 +1,14 @@
+[Unit]
+Description=Watch for ArkEPass GUI ready signal
+Before=drm-arch-app.service
+
+[Path]
+# PathExists= would retrigger immediately as long as gui-alive remains present,
+# which can busy-loop if the stop service exits/skips after boot animation ended.
+# PathChanged= matches the app's open/write/fsync/close sequence and only fires
+# when the ready marker is newly written.
+PathChanged=/run/epass/gui-alive
+Unit=epass-stop-boot-animation.service
+
+[Install]
+WantedBy=basic.target

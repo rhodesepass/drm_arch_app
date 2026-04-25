@@ -1,0 +1,9 @@
+[Unit]
+Description=Periodic cache drop for 64MB system
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+
+[Install]
+WantedBy=timers.target

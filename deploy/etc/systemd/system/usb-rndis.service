@@ -1,0 +1,12 @@
+[Unit]
+Description=USB RNDIS Network Gadget
+After=sys-kernel-config.mount
+Requires=sys-kernel-config.mount
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/usbctl.sh rndis
+
+[Install]
+WantedBy=multi-user.target

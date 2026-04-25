@@ -1,0 +1,261 @@
+cmake_minimum_required(VERSION 3.10)
+if(POLICY CMP0079)
+  cmake_policy(SET CMP0079 NEW)
+endif()
+project(drm_arch_app)
+include(FetchContent)
+
+# ============================================================================
+# Git 版本信息
+# ============================================================================
+find_package(Git QUIET)
+if(GIT_FOUND)
+  execute_process(
+      COMMAND ${GIT_EXECUTABLE} describe --tags --dirty
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE GIT_TAG
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      ERROR_QUIET
+  )
+  execute_process(
+      COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE GIT_COMMIT
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      ERROR_QUIET
+  )
+else()
+  set(GIT_TAG "unknown")
+  set(GIT_COMMIT "unknown")
+endif()
+message(STATUS "Git tag: ${GIT_TAG}")
+message(STATUS "Git commit: ${GIT_COMMIT}")
+
+# ============================================================================
+# 编译选项
+# ============================================================================
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+  set(APP_RELEASE ON CACHE BOOL "Build type" FORCE)
+  message(STATUS "No build type specified, defaulting to release mode.")
+else()
+  if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(APP_RELEASE OFF CACHE BOOL "Build type" FORCE)
+    message(STATUS "App is building in debug mode.")
+  elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(APP_RELEASE ON CACHE BOOL "Build type" FORCE)
+    message(STATUS "App is building in release mode.")
+  else()
+    message(FATAL_ERROR "Invalid build type: ${CMAKE_BUILD_TYPE}")
+  endif()
+endif()
+
+# ============================================================================
+# Cedarx 多媒体库配置 (Allwinner 专用, 可选)
+# ============================================================================
+# 可通过以下方式配置:
+# -DENABLE_CEDARX=OFF 禁用 Cedarx 支持
+
+option(ENABLE_CEDARX "Enable Cedarx video decoding support" ON)
+
+
+# ============================================================================
+# 依赖库查找
+# ============================================================================
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(PNG REQUIRED libpng)
+pkg_check_modules(LIBEVDEV REQUIRED libevdev)
+pkg_check_modules(LIBDRM REQUIRED libdrm)
+
+# ============================================================================
+# LVGL 配置
+# ============================================================================
+# direct tree builds use the shared dependency next to drm_arch_app, while the
+# Buildroot package stages a copy into the package build directory.
+set(APP_GENERATED_UI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/generated_ui")
+set(APP_LVGL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/lvgl")
+if(NOT EXISTS "${APP_LVGL_DIR}/CMakeLists.txt")
+  set(APP_LVGL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/lvgl")
+endif()
+get_filename_component(APP_LVGL_PARENT_DIR "${APP_LVGL_DIR}" DIRECTORY)
+
+if(NOT EXISTS "${APP_GENERATED_UI_DIR}/ui.c")
+  message(FATAL_ERROR "generated_ui is missing from ${APP_GENERATED_UI_DIR}")
+endif()
+
+if(NOT EXISTS "${APP_LVGL_DIR}/CMakeLists.txt")
+  message(FATAL_ERROR "LVGL sources were not found in ../third_party/lvgl or third_party/lvgl")
+endif()
+
+# 设置为 CACHE 变量以覆盖 LVGL 的默认值
+set(LV_BUILD_CONF_PATH ${CMAKE_SOURCE_DIR}/src/lv_conf.h CACHE PATH "lv_conf.h path" FORCE)
+set(CONFIG_LV_BUILD_EXAMPLES OFF CACHE BOOL "Build LVGL examples" FORCE)
+set(CONFIG_LV_BUILD_DEMOS OFF CACHE BOOL "Build LVGL demos" FORCE)
+add_subdirectory(${APP_LVGL_DIR} ${CMAKE_CURRENT_BINARY_DIR}/lvgl-build)
+
+# ============================================================================
+# 源文件
+# ============================================================================
+FILE(GLOB UI_SOURCES "${APP_GENERATED_UI_DIR}/*.c")
+
+set(EPASS_SOURCES
+  src/main.c
+
+  src/prts/prts.c
+  src/prts/operators.c
+
+  src/apps/apps.c
+  src/apps/extmap.c
+  src/apps/apps_cfg_parse.c
+  src/apps/ipc_common.c
+  src/apps/ipc_server.c
+  src/apps/ipc_handler.c
+
+  src/driver/drm_warpper.c
+  src/driver/key_enc_evdev.c
+
+  src/render/animation_driver.c
+  src/render/layer_animation.c
+  src/render/lvgl_drm_warp.c
+  src/render/fbdraw.c
+
+  ${UI_SOURCES}
+  src/ui/filemanager.c
+  src/ui/scr_transition.c
+  src/ui/battery.c
+  src/ui/actions_warning.c
+  src/ui/actions_mainscreen.c
+  src/ui/actions_settings.c
+  src/ui/actions_displayimg.c
+  src/ui/actions_sysinfo.c
+  src/ui/actions_sysinfo2.c
+  src/ui/shell_net.c
+  src/ui/actions_oplist.c
+  src/ui/actions_apps.c
+  src/ui/actions_confirm.c
+  src/ui/ipc_helper.c
+
+  src/overlay/overlay.c
+  src/overlay/transitions.c
+  src/overlay/opinfo.c
+
+  src/utils/spsc_queue.c
+  src/utils/log.c
+  src/utils/timer.c
+  src/utils/settings.c
+  src/utils/theme.c
+  src/utils/cacheassets.c
+  src/utils/code128.c
+  src/utils/cJSON.c
+  src/utils/uuid.c
+  src/utils/misc.c
+)
+
+# 如果 Cedarx 可用，添加 mediaplayer
+if(ENABLE_CEDARX)
+  list(APPEND EPASS_SOURCES src/render/mediaplayer.c)
+endif()
+
+add_executable(drm_arch_app ${EPASS_SOURCES})
+
+# ============================================================================
+# 包含目录
+# ============================================================================
+target_include_directories(drm_arch_app PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${APP_LVGL_PARENT_DIR}
+  ${APP_LVGL_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+  ${APP_GENERATED_UI_DIR}
+  ${LIBDRM_INCLUDEDIR}
+  ${LIBDRM_INCLUDE_DIRS}
+  ${PNG_INCLUDE_DIRS}
+)
+
+
+# ============================================================================
+# 编译定义
+# ============================================================================
+string(TIMESTAMP COMPILE_TIME "%Y-%m-%d %H:%M:%S")
+
+target_compile_definitions(drm_arch_app PRIVATE
+  _DEFAULT_SOURCE
+  EPASS_GIT_VERSION="${GIT_COMMIT}"
+  EPASS_GIT_TAG="${GIT_TAG}"
+  COMPILE_TIME="${COMPILE_TIME}"
+)
+
+# 如果 Cedarx 可用，定义宏
+if(ENABLE_CEDARX)
+  target_compile_definitions(drm_arch_app PRIVATE HAVE_CEDARX=1)
+else()
+  target_compile_definitions(drm_arch_app PRIVATE HAVE_CEDARX=0)
+endif()
+
+# ============================================================================
+# 编译选项
+# ============================================================================
+target_compile_options(drm_arch_app PRIVATE
+  -Wall -Wextra -Wno-unused-parameter
+  -Wno-format-truncation
+  -ffile-prefix-map=${CMAKE_SOURCE_DIR}/src/=/
+  ${PNG_CFLAGS_OTHER}
+  ${LIBEVDEV_CFLAGS_OTHER}
+  $<$<BOOL:${APP_RELEASE}>:-DAPP_RELEASE>
+)
+
+target_compile_options(lvgl PRIVATE
+  $<$<BOOL:${APP_RELEASE}>:-DAPP_RELEASE>
+)
+
+target_include_directories(lvgl PRIVATE
+  ${PNG_INCLUDE_DIRS}
+)
+
+target_link_libraries(lvgl PRIVATE
+  ${PNG_LIBRARIES}
+)
+
+
+# ============================================================================
+# 链接库
+# ============================================================================
+target_link_libraries(drm_arch_app
+  # 数学库和系统库
+  m
+  dl
+  pthread
+  rt
+
+  # 外部依赖
+  ${LIBEVDEV_LIBRARIES}
+  ${LIBDRM_LIBRARIES}
+  ${PNG_LIBRARIES}
+  lvgl
+)
+
+# 如果 Cedarx 可用，链接 Cedarx 库
+if(ENABLE_CEDARX)
+  target_link_libraries(drm_arch_app
+    MemAdapter
+    vdecoder
+    VE
+    videoengine
+    cdc_base
+    cdx_parser
+    cdx_stream
+    cdx_base
+    cdx_common
+    # libcdx_stream 和 libcdx_parser 依赖 OpenSSL
+    ssl
+    crypto
+  )
+endif()
+
+# ============================================================================
+# 安装规则 (可选)
+# ============================================================================
+install(TARGETS drm_arch_app DESTINATION bin)

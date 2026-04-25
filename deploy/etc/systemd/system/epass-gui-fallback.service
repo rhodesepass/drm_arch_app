@@ -1,0 +1,10 @@
+[Unit]
+Description=ArkEPass GUI failure fallback
+After=local-fs.target
+RequiresMountsFor=/run /root
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/epass-gui-fallback.sh
+StandardOutput=journal+console
+StandardError=journal+console
