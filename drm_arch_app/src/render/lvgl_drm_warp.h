@@ -33,6 +33,7 @@ typedef struct {
     bool ui_helpers_inited;
     bool first_flush_logged;
     bool first_flush_ready_logged;
+    bool start_in_settings;
 
 } lvgl_drm_warp_t;
 

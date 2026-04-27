@@ -5,13 +5,13 @@ APP=/usr/local/bin/drm_arch_app
 APPSTART=/tmp/appstart
 SRGN_CONFIG=/usr/local/bin/srgn_config
 SRGN_CONFIG_RUNNER=/usr/local/bin/epass-run-srgn-config.sh
-APP_IMPORTER=/usr/local/bin/epass-app-import.sh
 BOOT_MARK=/usr/local/bin/epass-boot-mark.sh
 RUN_DIR=/run/epass
 REASON_FILE=${RUN_DIR}/gui-failure-reason
 APP_LOG=${RUN_DIR}/drm_arch_app.log
 LAST_LOG=${RUN_DIR}/drm_arch_app.last.log
 GUI_ALIVE_FILE=${RUN_DIR}/gui-alive
+PENDING_START_SCREEN=
 
 mark_stage() {
     if [ -x "$BOOT_MARK" ]; then
@@ -48,11 +48,14 @@ while :; do
 
     mkdir -p "$RUN_DIR" 2>/dev/null || true
     rm -f "$GUI_ALIVE_FILE" 2>/dev/null || true
-    if [ -x "$APP_IMPORTER" ]; then
-        "$APP_IMPORTER" >/dev/null 2>&1 || true
-    fi
     mark_stage "drm-arch-app:runner-exec"
-    "$APP"
+    if [ -n "${PENDING_START_SCREEN}" ]; then
+        mark_stage "drm-arch-app:runner-start-screen-${PENDING_START_SCREEN}"
+        EPASS_START_SCREEN="${PENDING_START_SCREEN}" "$APP"
+        PENDING_START_SCREEN=
+    else
+        "$APP"
+    fi
     status=$?
     mark_stage "drm-arch-app:runner-exit-${status}"
 
@@ -94,12 +97,15 @@ while :; do
                 srgn_status=$?
                 echo "srgn_config exited with status $srgn_status"
                 mark_stage "drm-arch-app:srgn-config-exit-${srgn_status}"
+                PENDING_START_SCREEN=settings
             elif [ -x "$SRGN_CONFIG" ]; then
                 echo "drm_arch_app requested srgn_config"
                 "$SRGN_CONFIG" || true
+                PENDING_START_SCREEN=settings
             elif command -v srgn_config >/dev/null 2>&1; then
                 echo "drm_arch_app requested srgn_config"
                 srgn_config || true
+                PENDING_START_SCREEN=settings
             else
                 echo "WARNING: srgn_config is not available" >&2
             fi

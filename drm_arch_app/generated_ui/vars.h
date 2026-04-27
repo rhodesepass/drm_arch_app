@@ -35,8 +35,9 @@ typedef enum {
     curr_screen_t_SCREEN_WARNING = 7,
     curr_screen_t_SCREEN_CONFIRM = 8,
     curr_screen_t_SCREEN_APPLIST = 9,
-    curr_screen_t_SCREEN_SHELL = 10,
-    curr_screen_t_SCREEN_NET = 11
+    curr_screen_t_SCREEN_SYSINFO2 = 10,
+    curr_screen_t_SCREEN_SHELL = 11,
+    curr_screen_t_SCREEN_NET = 12
 } curr_screen_t;
 
 typedef enum {

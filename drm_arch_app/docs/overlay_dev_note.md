@@ -1,128 +1,126 @@
+# Overlay Layer Development Guide
 
+## Basic Constraints
 
-# Overlay层 开发指南
+The overlay layer is used to draw overlay effects such as "transition animations" and "operator info (opinfo)" above VIDEO and below UI. The core constraint is: **the PRTS timer callback thread must return as quickly as possible**, so any potentially time-consuming per-frame drawing must run in the overlay worker thread.
 
-## 基本约束
+### 1) Threading and timing model
 
-overlay 层用于在 VIDEO 之上 UI之下绘制“过渡动画（transition）”与“干员信息（opinfo）”等覆盖效果。核心约束是：**PRTS 的 timer 回调线程必须尽快返回**，因此任何可能耗时的逐帧绘制都要放到 overlay worker 线程执行。
+- `overlay_t` internally maintains:
+  - overlay layer double buffers (`overlay_buf_1/2`) and their corresponding display queue items
+  - a dedicated thread `overlay_worker_thread`, with tasks submitted through `overlay_worker_schedule()`
+  - `overlay->request_abort`: requests early termination (for example, stop immediately before the effect completes)
+  - `overlay->overlay_timer_handle`: **a synchronization signal indicating that worker-side cleanup has completed**
+- `overlay_worker_schedule(overlay, func, userdata)`:
+  - if the worker is idle: submit the task (`func(userdata, skipped_frames)`)
+  - if the worker is busy: drop this task and accumulate `skipped_frames` (to be deducted on the next execution)
+- `overlay_abort(overlay)`:
+  - sets `overlay->request_abort = 1`
+  - polls until `overlay->overlay_timer_handle == 0`
+  - semantically equivalent to: "request termination of the overlay effect and wait for the worker to finish resource cleanup / timer unregister"
 
-### 1) 线程与时序模型
+> Conclusion: **as long as your effect creates `overlay->overlay_timer_handle` (that is, it is a type that requires the worker), you must ensure that resources are fully cleaned up in the worker and that `overlay->overlay_timer_handle` is reset to zero**, otherwise `overlay_abort()` will wait forever.
 
-- `overlay_t` 内部维护：
-  - overlay 图层双缓冲（`overlay_buf_1/2`）以及对应 display queue item
-  - 一个专用线程 `overlay_worker_thread`，通过 `overlay_worker_schedule()` 投递任务
-  - `overlay->request_abort`：请求提前终止（例如效果未完成但要立刻停止）
-  - `overlay->overlay_timer_handle`：**worker 侧清理完成的同步信号**
-- `overlay_worker_schedule(overlay, func, userdata)`：
-  - worker 空闲：提交任务（`func(userdata, skipped_frames)`）
-  - worker 忙：丢弃这次任务并累计 `skipped_frames`（下一次执行时扣减）
-- `overlay_abort(overlay)`：
-  - 设置 `overlay->request_abort = 1`
-  - 轮询等待 `overlay->overlay_timer_handle == 0`
-  - 语义上等价于：“请求终止 overlay 效果，并等待 worker 完成资源回收/注销定时器”
+### 2) How to add a new Transition
 
-> 结论：**只要你的效果创建了 `overlay->overlay_timer_handle`（也就是“需要 worker”的类型），你就必须保证在 worker 中把资源回收干净，并把 `overlay->overlay_timer_handle` 归零**，否则 `overlay_abort()` 会一直等。
+#### 2.1 Implementation and configuration locations
 
-### 2) 新增 Transition（过渡效果）怎么做
+- Implementation files:
+  - `src/overlay/transitions.h`: add types / parameters / function declarations
+  - `src/overlay/transitions.c`: implement drawing and animation driving
+- Configuration mapping:
+  - `src/prts/operators.c`: map the strings in `transition_in/transition_loop` to `transition_type_t`, and validate/fill `oltr_params_t`
 
-#### 2.1 实现与配置落点
+#### 2.2 Transition that does not require a worker (one-time drawing + `layer_animation` driving)
 
-- 实现文件：
-  - `src/overlay/transitions.h`：新增类型/参数/函数声明
-  - `src/overlay/transitions.c`：实现绘制与动画驱动
-- 配置映射
-  - `src/prts/operators.c`：把 `transition_in/transition_loop` 的字符串映射到 `transition_type_t`，并校验/填充 `oltr_params_t`
+Applicable when the preparation phase can finish all drawing in one pass, and the runtime phase only needs `layer_animation_*` to control alpha/coordinates without per-frame redraw. Existing references: `overlay_transition_fade()` and `overlay_transition_move()`.
 
-#### 2.2 不需要 worker 的 Transition（一次性绘制 + layer_animation 驱动）
+Implementation steps:
 
-适用场景：准备阶段可一次性绘制完成，运行阶段只靠 `layer_animation_*` 控制 alpha/坐标，无需逐帧重画。现有参考：`overlay_transition_fade()`、`overlay_transition_move()`。
+- In the entry function, first set `overlay->request_abort = 0`
+- Set the initial layer state (for example alpha/coordinates)
+- Use `drm_warpper_dequeue_free_item()` to get a free buffer
+- Complete one-time drawing on that buffer (background color, optional image, etc.)
+- Submit it with `drm_warpper_enqueue_display_item()`
+- Start the animation with `layer_animation_*`
+- If you need a callback at a "midpoint" (for example, mount video after the screen is covered), use a one-shot `prts_timer_create(..., count=1, middle_cb)`
 
-实现步骤：
+Notes:
 
-- 在入口函数内先 `overlay->request_abort = 0`
-- 设置图层初始状态（例如 alpha/coord）
-- `drm_warpper_dequeue_free_item()` 取一块 free buffer
-- 在该 buffer 上完成一次性绘制（背景色、可选图片等）
-- `drm_warpper_enqueue_display_item()` 提交显示
-- 调用 `layer_animation_*` 启动动画
-- 如需“中间点”做一次回调（例如遮住后挂载 video），用一次性 `prts_timer_create(..., count=1, middle_cb)` 即可
+- This model usually does **not use** `overlay->overlay_timer_handle` (for example, the middle timer in fade/move uses a local handle), so it does not depend on the wait logic in `overlay_abort()`.
 
-注意点：
+#### 2.3 Transition that requires a worker (timer only schedules, worker performs per-frame drawing)
 
-- 这种模式通常 **不占用** `overlay->overlay_timer_handle`（例如 fade/move 的 middle timer 是局部 handle），因此也不依赖 `overlay_abort()` 的等待逻辑。
+Applicable when per-frame drawing is required. Existing reference: `overlay_transition_swipe()`.
 
-#### 2.3 需要 worker 的 Transition（timer 只 schedule，逐帧绘制在 worker）
+Key rules:
 
-适用场景：需要逐帧绘制。现有参考：`overlay_transition_swipe()`。
-
-关键规则：
-
-- **资源申请时机**：在“效果入口函数”（非 timer 回调）里申请/准备 worker 需要的资源（例如 `malloc`、贝塞尔表预计算、双缓冲清空/挂载）。不要在 timer 回调里做耗时准备。
-- **驱动方式**：
+- **Resource allocation timing**: allocate or prepare worker resources in the "effect entry function" (not the timer callback), such as `malloc`, Bezier table precomputation, double-buffer clear/mount. Do not do time-consuming preparation in the timer callback.
+- **Driving model**:
   - `prts_timer_create(&overlay->overlay_timer_handle, ..., cb=timer_cb, userdata=data)`
-  - `timer_cb` 里只做：`overlay_worker_schedule(overlay, worker_func, data)`
-  - 真正的绘制/状态机推进在 `worker_func` 中完成
-- **request_abort 处理位置**：必须在 `worker_func` 的开头检查 `overlay->request_abort`，为真则执行清理并立即返回。
-- **资源回收位置**：必须在 worker 中回收（见下节原因），清理完成后必须把 `overlay->overlay_timer_handle = 0`。
+  - inside `timer_cb`, only call `overlay_worker_schedule(overlay, worker_func, data)`
+  - actual drawing and state machine advancement happen inside `worker_func`
+- **Where to handle `request_abort`**: you must check `overlay->request_abort` at the beginning of `worker_func`; if true, clean up and return immediately.
+- **Where to clean up resources**: cleanup must happen inside the worker (see the reason below), and after cleanup `overlay->overlay_timer_handle` must be reset to `0`.
 
-### 3) 新增 OpInfo（干员信息效果）怎么做
+### 3) How to add a new OpInfo
 
-#### 3.1 实现与配置落点
+#### 3.1 Implementation and configuration locations
 
-- 实现文件：
-  - `src/overlay/opinfo.h`：新增类型/参数/函数声明
-  - `src/overlay/opinfo.c`：实现绘制与动画驱动
-- 配置映射
-  - `src/prts/operators.c`：把 `overlay.type` 的字符串映射到 `opinfo_type_t`，并校验/填充 `olopinfo_params_t`
+- Implementation files:
+  - `src/overlay/opinfo.h`: add types / parameters / function declarations
+  - `src/overlay/opinfo.c`: implement drawing and animation driving
+- Configuration mapping:
+  - `src/prts/operators.c`: map the string in `overlay.type` to `opinfo_type_t`, and validate/fill `olopinfo_params_t`
 
-#### 3.2 不需要 worker 的 OpInfo（一次性绘制 + layer_animation 驱动）
+#### 3.2 OpInfo that does not require a worker (one-time drawing + `layer_animation` driving)
 
-现有参考：`overlay_opinfo_show_image()`。
+Existing reference: `overlay_opinfo_show_image()`.
 
-实现步骤（建议顺序）：
+Suggested implementation order:
 
-- 在入口函数内先 `overlay->request_abort = 0`
-- `drm_warpper_dequeue_free_item()` 获取 free buffer
-- 一次性绘制（如位图贴图/清屏等）
-- `drm_warpper_enqueue_display_item()` 提交
-- 用 `layer_animation_*` 做进场/退场（例如 move）
+- In the entry function, first set `overlay->request_abort = 0`
+- Use `drm_warpper_dequeue_free_item()` to get a free buffer
+- Draw once (for example bitmap blit / clear screen)
+- Submit with `drm_warpper_enqueue_display_item()`
+- Use `layer_animation_*` for enter/exit animations (for example move)
 
-#### 3.3 需要 worker 的 OpInfo（逐帧/局部更新）
+#### 3.3 OpInfo that requires a worker (per-frame / partial updates)
 
-现有参考：`overlay_opinfo_show_arknights()`。
+Existing reference: `overlay_opinfo_show_arknights()`.
 
-实现步骤（建议顺序）：
+Suggested implementation order:
 
-- **入口函数（非 timer 回调）完成资源准备**
-  - 初始化双缓冲模板（可先把静态背景画入两块 buffer）
-  - 初始化 worker data（状态机参数、预计算表等；若需要 heap 内存则在这里 `malloc`）
-  - `overlay->request_abort = 0`
-- 创建定时器：`prts_timer_create(&overlay->overlay_timer_handle, ..., cb=timer_cb, userdata=&data)`
-  - `timer_cb` 内只 schedule
-- `worker_func`：
-  - 开头检查 `overlay->request_abort`，为真则执行清理并返回
-  - 推进状态机（可按“状态转移 → 绘制 → 交换 buffer → enqueue”的顺序写）
-  - 正常结束条件满足时执行清理
-- **清理（在 worker 内）**
+- **Prepare resources in the entry function (not the timer callback)**
+  - initialize double-buffer templates (for example, draw the static background into both buffers first)
+  - initialize worker data (state machine parameters, precomputed tables, etc.; if heap memory is needed, `malloc` here)
+  - set `overlay->request_abort = 0`
+- Create the timer: `prts_timer_create(&overlay->overlay_timer_handle, ..., cb=timer_cb, userdata=&data)`
+  - inside `timer_cb`, only schedule
+- `worker_func`:
+  - check `overlay->request_abort` at the beginning; if true, clean up and return
+  - advance the state machine (a practical order is "state transition -> draw -> swap buffer -> enqueue")
+  - perform cleanup when the normal completion condition is met
+- **Cleanup (inside the worker)**
   - `prts_timer_cancel(overlay->overlay_timer_handle)`
-  - free 掉 worker 使用的 heap 资源（如有）
+  - free heap resources used by the worker, if any
   - `overlay->overlay_timer_handle = 0`
 
-### 4) 目前Overlay 编程模型的设计考量
+### 4) Design considerations of the current Overlay programming model
 
-#### 4.1 为什么资源必须在 worker 中回收？
+#### 4.1 Why must resources be cleaned up in the worker?
 
-timer虽然给出了is_last字段用来处理释放问题，但是timer 回调线程与 overlay worker 线程是并发的。如果你在 timer 回调（或其它线程）里 free 了 worker 正在访问的数据，就会出现 **UAF（Use-After-Free）**。
+Although the timer provides an `is_last` field to help with release handling, the timer callback thread and the overlay worker thread run concurrently. If you free data in the timer callback (or another thread) while the worker is still accessing it, you will get **UAF (Use-After-Free)**.
 
-#### 4.2 必须保证 `overlay_timer_handle` 能归零（否则 stop 会卡死）
+#### 4.2 You must ensure `overlay_timer_handle` can return to zero (otherwise stop will hang)
 
-只要你的效果创建了 `overlay->overlay_timer_handle`：
+As long as your effect creates `overlay->overlay_timer_handle`:
 
-- **正常结束路径**：最后一帧/结束条件满足时，在 worker 内 cancel timer + 回收资源 + `overlay_timer_handle=0`
-- **abort 路径**：检测到 `request_abort` 时，在 worker 内 cancel timer + 回收资源 + `overlay_timer_handle=0`
+- **Normal completion path**: when the final frame or end condition is reached, cancel the timer, clean up resources, and set `overlay_timer_handle = 0` inside the worker
+- **Abort path**: when `request_abort` is detected, cancel the timer, clean up resources, and set `overlay_timer_handle = 0` inside the worker
 
-否则 `overlay_abort()` 会一直阻塞等待（轮询 `overlay_timer_handle`）。
+Otherwise `overlay_abort()` will keep blocking and waiting by polling `overlay_timer_handle`.
 
-## 开发示例
+## Development example
 
-[opinfo.c](../src/overlay/opinfo.c)中的arknights_overlay_worker是一个开发的演示。
+`arknights_overlay_worker` in [opinfo.c](../src/overlay/opinfo.c) is a development example.

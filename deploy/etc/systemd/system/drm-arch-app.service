@@ -1,10 +1,8 @@
 [Unit]
 Description=ArkEPass DRM App
 Requires=screen-detect.service
-Wants=epass-data-mount.service
-Wants=epass-usb-mode.service
 RequiresMountsFor=/assets /app /dispimg /root/res /root
-After=local-fs.target screen-detect.service cpu-overclock.service epass-boot-animation.service epass-data-mount.service epass-usb-mode.service
+After=local-fs.target screen-detect.service cpu-overclock.service epass-boot-animation.service
 Conflicts=getty@tty1.service
 StartLimitIntervalSec=60
 StartLimitBurst=3

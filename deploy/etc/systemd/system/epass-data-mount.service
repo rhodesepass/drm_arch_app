@@ -1,7 +1,7 @@
 [Unit]
 Description=Mount ArkEPass shared data partition
-After=local-fs.target systemd-remount-fs.service systemd-udev-trigger.service
-Before=epass-usb-mode.service drm-arch-app.service sshd.service
+After=local-fs.target systemd-remount-fs.service systemd-udev-trigger.service drm-arch-app.service
+Before=epass-usb-mode.service sshd.service
 RequiresMountsFor=/root
 ConditionKernelCommandLine=!epass.firstboot=1
 ConditionKernelCommandLine=!epass.resize=1

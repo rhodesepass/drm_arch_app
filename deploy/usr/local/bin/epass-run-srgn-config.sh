@@ -6,6 +6,7 @@ BOOT_MNT=/boot
 BOOT_UENV=${BOOT_MNT}/uEnv.txt
 VT_REBOUND=0
 BOOT_MOUNTED_BY_US=0
+VT_STATE_FILE=
 
 log_line() {
     printf '<6>epass-srgn-config: %s\n' "$*" > /dev/kmsg 2>/dev/null || true
@@ -59,8 +60,47 @@ set_vt_bind_state() {
     for node in /sys/class/vtconsole/vtcon*/bind; do
         [ -w "${node}" ] || continue
         printf '%s\n' "${state}" > "${node}" 2>/dev/null || true
+        log_line "vt bind set ${node}=${state}"
         VT_REBOUND=1
     done
+}
+
+snapshot_vt_bind_state() {
+    local node
+    local state
+
+    VT_STATE_FILE=$(mktemp /tmp/epass-srgn-vt.XXXXXX 2>/dev/null || true)
+    [ -n "${VT_STATE_FILE}" ] || return 0
+
+    : > "${VT_STATE_FILE}"
+    for node in /sys/class/vtconsole/vtcon*/bind; do
+        [ -r "${node}" ] || continue
+        state=$(cat "${node}" 2>/dev/null || true)
+        [ -n "${state}" ] || continue
+        printf '%s %s\n' "${node}" "${state}" >> "${VT_STATE_FILE}"
+        log_line "vt bind snapshot ${node}=${state}"
+    done
+}
+
+restore_vt_bind_state() {
+    local node
+    local state
+
+    if [ -n "${VT_STATE_FILE}" ] && [ -r "${VT_STATE_FILE}" ]; then
+        while IFS=' ' read -r node state; do
+            [ -n "${node}" ] || continue
+            [ -w "${node}" ] || continue
+            printf '%s\n' "${state}" > "${node}" 2>/dev/null || true
+            log_line "vt bind restore ${node}=${state}"
+        done < "${VT_STATE_FILE}"
+        rm -f "${VT_STATE_FILE}" 2>/dev/null || true
+        VT_STATE_FILE=
+        return 0
+    fi
+
+    if [ "${VT_REBOUND}" = "1" ]; then
+        set_vt_bind_state 0
+    fi
 }
 
 choose_tty() {
@@ -116,9 +156,7 @@ cleanup() {
         umount "${BOOT_MNT}" 2>/dev/null || true
     fi
 
-    if [ "${VT_REBOUND}" = "1" ]; then
-        set_vt_bind_state 0
-    fi
+    restore_vt_bind_state
 }
 
 run_srgn_config_on_tty() {
@@ -142,11 +180,13 @@ main() {
     fi
 
     mount_boot_rw || true
+    snapshot_vt_bind_state
     set_vt_bind_state 1
     sleep 0.1
 
     tty=$(choose_tty || true)
     if [ -n "${tty}" ]; then
+        log_line "selected tty ${tty}"
         run_srgn_config_on_tty "${tty}"
         rc=$?
     else

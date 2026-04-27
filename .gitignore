@@ -1,0 +1,10 @@
+drm_arch_app/build/
+python-install/
+
+*.img
+*.log
+*.pyc
+*.swp
+*.tmp
+*~
+__pycache__/

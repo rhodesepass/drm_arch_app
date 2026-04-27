@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <stdatomic.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 #include <ui/actions_warning.h>
 
 #include "styles.h"
@@ -22,6 +24,9 @@ ui_apps_t g_ui_apps;
 static lv_timer_t *g_ui_apps_timer = NULL;
 static atomic_int g_ui_apps_refresh_running = 0;
 static atomic_int g_ui_apps_refresh_ready = 0;
+static atomic_int g_ui_apps_refresh_force_reload = 0;
+static uint64_t g_ui_apps_app_dir_token = 0;
+static uint64_t g_ui_apps_inbox_dir_token = 0;
 extern bool g_use_sd;
 // =========================================
 // 自己添加的方法 START
@@ -38,18 +43,55 @@ static void refocus_to_app(int app_idx);
 static void ui_apps_rebuild(void);
 static void ui_apps_apply_pending_refresh(void);
 
+static uint64_t ui_apps_path_refresh_token(const char *path) {
+    struct stat st;
+
+    if (path == NULL || stat(path, &st) != 0) {
+        return 0;
+    }
+
+    return ((uint64_t)st.st_mtime << 32) ^
+           (uint64_t)st.st_size ^
+           ((uint64_t)st.st_ino << 1);
+}
+
+static bool ui_apps_importer_changed_catalog(int rc) {
+    if (rc == -1) {
+        return true;
+    }
+
+    if (WIFEXITED(rc)) {
+        int exit_code = WEXITSTATUS(rc);
+
+        if (exit_code == 0) {
+            return true;
+        }
+        if (exit_code == 10) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static void *ui_apps_refresh_worker(void *userdata) {
     (void)userdata;
+    bool reload_catalog;
 
     log_info("apps: background import started");
     int rc = system("/usr/local/bin/epass-app-import.sh >/dev/null 2>&1");
-    if (rc != 0) {
+    if (rc != 0 && ui_apps_importer_changed_catalog(rc)) {
         log_warn("apps: background import finished with rc=%d", rc);
-    } else {
+    } else if (ui_apps_importer_changed_catalog(rc)) {
         log_info("apps: background import finished");
+    } else {
+        log_info("apps: no package changes detected");
     }
 
-    atomic_store(&g_ui_apps_refresh_ready, 1);
+    reload_catalog = atomic_load(&g_ui_apps_refresh_force_reload) != 0 ||
+                     ui_apps_importer_changed_catalog(rc);
+    atomic_store(&g_ui_apps_refresh_ready, reload_catalog ? 1 : 0);
+    atomic_store(&g_ui_apps_refresh_force_reload, 0);
     atomic_store(&g_ui_apps_refresh_running, 0);
     return NULL;
 }
@@ -312,6 +354,8 @@ static void ui_apps_rebuild(void) {
 
     log_info("START apps->ui sync (virtual scroll mode)!! Total apps: %d", apps->app_count);
     lv_obj_clean(objects.app_container);
+    g_ui_apps_app_dir_token = ui_apps_path_refresh_token(APPS_DIR);
+    g_ui_apps_inbox_dir_token = ui_apps_path_refresh_token("/mnt/epass-data/apps-inbox");
 
     for (int i = 0; i < UI_APP_VISIBLE_SLOTS; i++) {
         create_slot_ui(i);
@@ -364,6 +408,10 @@ void ui_apps_init(apps_t *apps){
 
 void ui_apps_refresh_catalog(void) {
     pthread_t worker;
+    uint64_t app_dir_token;
+    uint64_t inbox_dir_token;
+    bool installed_changed;
+    bool inbox_changed;
 
     if (g_ui_apps.apps == NULL) {
         return;
@@ -374,12 +422,35 @@ void ui_apps_refresh_catalog(void) {
         return;
     }
 
+    app_dir_token = ui_apps_path_refresh_token(APPS_DIR);
+    inbox_dir_token = ui_apps_path_refresh_token("/mnt/epass-data/apps-inbox");
+    installed_changed = app_dir_token != g_ui_apps_app_dir_token;
+    inbox_changed = inbox_dir_token != g_ui_apps_inbox_dir_token;
+
+    if (!installed_changed && !inbox_changed) {
+        return;
+    }
+
+    g_ui_apps_app_dir_token = app_dir_token;
+    g_ui_apps_inbox_dir_token = inbox_dir_token;
+
+    if (installed_changed && !inbox_changed) {
+        atomic_store(&g_ui_apps_refresh_ready, 1);
+        return;
+    }
+
+    atomic_store(&g_ui_apps_refresh_force_reload, installed_changed ? 1 : 0);
     atomic_store(&g_ui_apps_refresh_running, 1);
     if (pthread_create(&worker, NULL, ui_apps_refresh_worker, NULL) != 0) {
+        int rc;
+
         log_error("apps: failed to create background import thread");
         atomic_store(&g_ui_apps_refresh_running, 0);
-        system("/usr/local/bin/epass-app-import.sh >/dev/null 2>&1");
-        atomic_store(&g_ui_apps_refresh_ready, 1);
+        rc = system("/usr/local/bin/epass-app-import.sh >/dev/null 2>&1");
+        atomic_store(
+            &g_ui_apps_refresh_ready,
+            (installed_changed || ui_apps_importer_changed_catalog(rc)) ? 1 : 0
+        );
         return;
     }
     pthread_detach(worker);

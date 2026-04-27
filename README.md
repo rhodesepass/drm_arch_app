@@ -10,6 +10,34 @@ U-Boot, target libraries, and package integration. `epass-arch` owns the
 runtime-facing part of the system: app behavior, systemd startup chain, shared
 data layout, USB gadget behavior, and Arch SD image assembly.
 
+## Documentation Index
+
+This README is the documentation entry point for the project-owned documents in
+`epass-arch/`.
+
+Excluded from this index:
+
+- `AGENTS.md`
+- vendored documentation under `third_party/`
+- bundled upstream/package documentation under `python-build/` and
+  `python-install/`
+
+### Project Overview
+
+- [epass-arch README](README.md)
+
+### GUI Runtime
+
+- [drm_arch_app README](drm_arch_app/README.md)
+- [Application Structure](drm_arch_app/docs/application_structure.md)
+- [Overlay Layer Development Guide](drm_arch_app/docs/overlay_dev_note.md)
+
+### UI Design / Export Tooling
+
+- [EEZ Studio Project README](ui_design/epass_eez/README.md)
+- [Font File Generation](ui_design/epass_eez/font_generate/README.md)
+- [Icon Define Generation](ui_design/epass_eez/icon_header_gen/README.md)
+
 ## What This Project Covers
 
 Current responsibilities in this directory:
@@ -52,6 +80,7 @@ Useful entry points:
 
 - [drm_arch_app/README.md](drm_arch_app/README.md)
 - [drm_arch_app/docs/application_structure.md](drm_arch_app/docs/application_structure.md)
+- [drm_arch_app/docs/overlay_dev_note.md](drm_arch_app/docs/overlay_dev_note.md)
 
 ### `deploy/`
 
@@ -83,6 +112,12 @@ Source of truth for the EEZ Studio UI project.
 
 - edit the EEZ project here
 - export generated code into `drm_arch_app/generated_ui/`
+
+Useful entry points:
+
+- [ui_design/epass_eez/README.md](ui_design/epass_eez/README.md)
+- [ui_design/epass_eez/font_generate/README.md](ui_design/epass_eez/font_generate/README.md)
+- [ui_design/epass_eez/icon_header_gen/README.md](ui_design/epass_eez/icon_header_gen/README.md)
 
 Do not hand-edit the generated C files in `generated_ui/`.
 

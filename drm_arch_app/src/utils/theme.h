@@ -1,11 +1,13 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #include "lvgl.h"
 
 int app_theme_init(void);
+int app_theme_reload(void);
 int32_t app_theme_get_active_index(void);
 int app_theme_set_active_index(uint32_t index);
 const char *app_theme_get_options(void);

@@ -24,6 +24,7 @@
 #include "ui/actions_displayimg.h"
 #include "ui/actions_confirm.h"
 #include "ui/shell_net.h"
+#include "ui/scr_transition.h"
 #include "utils/theme.h"
 
 #define LVGL_DRM_WARP_MAX_IDLE_MS 16
@@ -66,6 +67,13 @@ static uint32_t lvgl_drm_warp_tick_get_cb(void)
     clock_gettime(CLOCK_MONOTONIC, &t);
     uint64_t time_ms = t.tv_sec * 1000 + (t.tv_nsec / 1000000);
     return time_ms;
+}
+
+static bool lvgl_drm_warp_should_start_in_settings(void)
+{
+    const char *value = getenv("EPASS_START_SCREEN");
+
+    return value != NULL && strcmp(value, "settings") == 0;
 }
 
 static void lvgl_drm_warp_flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * px_map)
@@ -120,6 +128,10 @@ static void* lvgl_drm_warp_thread_entry(void *arg){
     lvgl_drm_warp_t *lvgl_drm_warp = (lvgl_drm_warp_t *)arg;
     log_info("==> LVGL Thread Started!");
     loadScreen(SCREEN_ID_SPINNER);
+    if (lvgl_drm_warp->start_in_settings) {
+        log_info("ui:start-screen=settings");
+        ui_schedule_screen_transition(curr_screen_t_SCREEN_SETTINGS);
+    }
     while(atomic_load(&lvgl_drm_warp->running)){
         uint32_t idle_time = lv_timer_handler();
         ui_tick();
@@ -146,7 +158,11 @@ int lvgl_drm_warp_init(lvgl_drm_warp_t *lvgl_drm_warp,drm_warpper_t *drm_warpper
     lvgl_drm_warp->keypad_indev = NULL;
     lvgl_drm_warp->first_flush_logged = false;
     lvgl_drm_warp->first_flush_ready_logged = false;
+    lvgl_drm_warp->start_in_settings = lvgl_drm_warp_should_start_in_settings();
     lvgl_drm_warp->key_enc_evdev.evdev_fd = -1;
+    if (lvgl_drm_warp->start_in_settings) {
+        log_info("ui:startup requested settings screen");
+    }
     if(drm_warpper_allocate_buffer(drm_warpper, DRM_WARPPER_LAYER_UI, &lvgl_drm_warp->ui_buf_1) != 0){
         log_error("failed to allocate first UI buffer");
         return -1;

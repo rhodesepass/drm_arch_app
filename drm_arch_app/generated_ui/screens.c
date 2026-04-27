@@ -196,8 +196,8 @@ static void event_handler_cb_confirm_confirm(lv_event_t *e) {
     if (event == LV_EVENT_SCREEN_LOAD_START) {
         // group: op
         lv_group_remove_all_objs(groups.op);
-        lv_group_add_obj(groups.op, objects.back_btn_2);
-        lv_group_add_obj(groups.op, objects.obj11);
+        lv_group_add_obj(groups.op, objects.confirm_cancel_btn);
+        lv_group_add_obj(groups.op, objects.confirm_proceed_btn);
     }
 }
 
@@ -649,7 +649,7 @@ void create_screen_oplist() {
                     lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    create_user_widget_operator_entry(obj, 29);
+                    create_user_widget_operator_entry(obj, 28);
                     lv_obj_clear_flag(obj, LV_OBJ_FLAG_CLICKABLE);
                     add_style_op_entry(obj);
                 }
@@ -664,7 +664,7 @@ void create_screen_oplist() {
                     lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    create_user_widget_operator_entry(obj, 35);
+                    create_user_widget_operator_entry(obj, 34);
                     lv_obj_clear_flag(obj, LV_OBJ_FLAG_CLICKABLE);
                     add_style_op_entry(obj);
                 }
@@ -708,8 +708,8 @@ void create_screen_oplist() {
 }
 
 void tick_screen_oplist() {
-    tick_user_widget_operator_entry(29);
-    tick_user_widget_operator_entry(35);
+    tick_user_widget_operator_entry(28);
+    tick_user_widget_operator_entry(34);
 }
 
 void create_screen_sysinfo() {
@@ -886,7 +886,7 @@ void create_screen_sysinfo2() {
     objects.sysinfo2 = obj;
     lv_obj_set_pos(obj, 0, 0);
     lv_obj_set_size(obj, 360, 640);
-    lv_obj_add_event_cb(obj, action_show_net, LV_EVENT_SCREEN_LOADED, (void *)4);
+    lv_obj_add_event_cb(obj, action_screen_loaded_cb, LV_EVENT_SCREEN_LOADED, (void *)10);
     lv_obj_add_event_cb(obj, event_handler_cb_sysinfo2_sysinfo2, LV_EVENT_ALL, 0);
     {
         lv_obj_t *parent_obj = obj;
@@ -1013,7 +1013,7 @@ void create_screen_sysinfo2() {
             // net_btn
             lv_obj_t *obj = lv_button_create(parent_obj);
             objects.net_btn = obj;
-            lv_obj_set_pos(obj, 43, 569);
+            lv_obj_set_pos(obj, 41, 569);
             lv_obj_set_size(obj, 87, 51);
             lv_obj_add_event_cb(obj, action_show_net, LV_EVENT_PRESSED, (void *)4);
             {
@@ -1033,7 +1033,7 @@ void create_screen_sysinfo2() {
             lv_obj_t *obj = lv_button_create(parent_obj);
             objects.shell_btn = obj;
             lv_obj_set_pos(obj, 136, 569);
-            lv_obj_set_size(obj, 87, 51);
+            lv_obj_set_size(obj, 89, 51);
             lv_obj_add_event_cb(obj, action_show_shell, LV_EVENT_PRESSED, (void *)4);
             {
                 lv_obj_t *parent_obj = obj;
@@ -1051,7 +1051,7 @@ void create_screen_sysinfo2() {
             // back_btn_3
             lv_obj_t *obj = lv_button_create(parent_obj);
             objects.back_btn_3 = obj;
-            lv_obj_set_pos(obj, 228, 569);
+            lv_obj_set_pos(obj, 233, 569);
             lv_obj_set_size(obj, 87, 51);
             lv_obj_add_event_cb(obj, action_show_sysinfo, LV_EVENT_PRESSED, (void *)4);
             {
@@ -1596,91 +1596,71 @@ void create_screen_confirm() {
     lv_obj_set_size(obj, 360, 640);
     lv_obj_add_event_cb(obj, action_screen_loaded_cb, LV_EVENT_SCREEN_LOADED, (void *)8);
     lv_obj_add_event_cb(obj, event_handler_cb_confirm_confirm, LV_EVENT_ALL, 0);
-    lv_obj_set_style_bg_color(obj, lv_color_hex(0xff9b861f), LV_PART_MAIN | LV_STATE_DEFAULT);
     {
         lv_obj_t *parent_obj = obj;
         {
             lv_obj_t *obj = lv_label_create(parent_obj);
-            lv_obj_set_pos(obj, 14, 4);
+            lv_obj_set_pos(obj, 57, 22);
             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-            add_style_fa_label(obj);
-            lv_label_set_text(obj, "");
+            add_style_label_large(obj);
+            lv_label_set_text(obj, "二次确认");
         }
         {
+            // confirm_title_label
             lv_obj_t *obj = lv_label_create(parent_obj);
-            objects.obj12 = obj;
-            lv_obj_set_pos(obj, 83, 37);
-            lv_obj_set_size(obj, 262, LV_SIZE_CONTENT);
+            objects.confirm_title_label = obj;
+            lv_obj_set_pos(obj, 29, 142);
+            lv_obj_set_size(obj, 302, LV_SIZE_CONTENT);
             add_style_label_large(obj);
             lv_label_set_text(obj, "");
+            lv_obj_set_style_text_align(obj, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
         }
         {
-            lv_obj_t *obj = lv_label_create(parent_obj);
-            lv_obj_set_pos(obj, 83, 4);
-            lv_obj_set_size(obj, 196, LV_SIZE_CONTENT);
-            add_style_label_large(obj);
-            lv_label_set_text(obj, "=PRTS二次确认=");
-        }
-        {
-            lv_obj_t *obj = lv_label_create(parent_obj);
-            objects.obj10 = obj;
-            lv_obj_set_pos(obj, 261, -2);
-            lv_obj_set_size(obj, 99, 68);
-            lv_obj_set_style_text_color(obj, lv_color_hex(0xffb9b1b1), LV_PART_MAIN | LV_STATE_DEFAULT);
-            lv_obj_set_style_text_align(obj, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN | LV_STATE_DEFAULT);
-            lv_label_set_text(obj, "=>Secound\nConfirm");
-        }
-        {
-            // back_btn_2
+            // confirm_cancel_btn
             lv_obj_t *obj = lv_button_create(parent_obj);
-            objects.back_btn_2 = obj;
-            lv_obj_set_pos(obj, 28, 70);
+            objects.confirm_cancel_btn = obj;
+            lv_obj_set_pos(obj, 28, 510);
             lv_obj_set_size(obj, 149, 51);
-            lv_obj_add_event_cb(obj, action_confirm_cancel, LV_EVENT_PRESSED, (void *)2);
-            lv_obj_set_style_bg_color(obj, lv_color_hex(0xff6c6666), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_add_event_cb(obj, action_confirm_cancel, LV_EVENT_PRESSED, (void *)8);
             {
                 lv_obj_t *parent_obj = obj;
-                {
-                    lv_obj_t *obj = lv_label_create(parent_obj);
-                    lv_obj_set_pos(obj, 0, 0);
-                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-                    add_style_label_large(obj);
-                    lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    lv_label_set_text(obj, "取消");
-                }
+                lv_obj_t *obj = lv_label_create(parent_obj);
+                lv_obj_set_pos(obj, 0, 0);
+                lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                add_style_label_large(obj);
+                lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+                lv_label_set_text(obj, "取消");
             }
         }
         {
+            // confirm_proceed_btn
             lv_obj_t *obj = lv_button_create(parent_obj);
-            objects.obj11 = obj;
-            lv_obj_set_pos(obj, 187, 69);
+            objects.confirm_proceed_btn = obj;
+            lv_obj_set_pos(obj, 187, 510);
             lv_obj_set_size(obj, 147, 52);
-            lv_obj_add_event_cb(obj, action_confirm_proceed, LV_EVENT_PRESSED, (void *)0);
-            lv_obj_set_style_bg_color(obj, lv_color_hex(0xffb10a0a), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_add_event_cb(obj, action_confirm_proceed, LV_EVENT_PRESSED, (void *)8);
             {
                 lv_obj_t *parent_obj = obj;
-                {
-                    lv_obj_t *obj = lv_label_create(parent_obj);
-                    lv_obj_set_pos(obj, 0, 0);
-                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-                    add_style_label_large(obj);
-                    lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    lv_label_set_text(obj, "确定");
-                }
+                lv_obj_t *obj = lv_label_create(parent_obj);
+                lv_obj_set_pos(obj, 0, 0);
+                lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                add_style_label_large(obj);
+                lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+                lv_label_set_text(obj, "确定");
             }
         }
     }
-    
+
     tick_screen_confirm();
 }
 
 void tick_screen_confirm() {
     {
         const char *new_val = get_var_confirm_title();
-        const char *cur_val = lv_label_get_text(objects.obj12);
+        const char *cur_val = lv_label_get_text(objects.confirm_title_label);
         if (strcmp(new_val, cur_val) != 0) {
-            tick_value_change_obj = objects.obj12;
-            lv_label_set_text(objects.obj12, new_val);
+            tick_value_change_obj = objects.confirm_title_label;
+            lv_label_set_text(objects.confirm_title_label, new_val);
             tick_value_change_obj = NULL;
         }
     }
@@ -1722,7 +1702,7 @@ void create_screen_applist() {
                 lv_obj_t *parent_obj = obj;
                 {
                     lv_obj_t *obj = lv_obj_create(parent_obj);
-                    objects.obj13 = obj;
+                    objects.obj10 = obj;
                     lv_obj_set_pos(obj, 0, 0);
                     lv_obj_set_size(obj, LV_PCT(97), 80);
                     lv_obj_set_style_pad_left(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -1731,13 +1711,13 @@ void create_screen_applist() {
                     lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    create_user_widget_app_entry(obj, 82);
+                    create_user_widget_app_entry(obj, 77);
                     lv_obj_clear_flag(obj, LV_OBJ_FLAG_CLICKABLE);
                     add_style_op_entry(obj);
                 }
                 {
                     lv_obj_t *obj = lv_obj_create(parent_obj);
-                    objects.obj14 = obj;
+                    objects.obj11 = obj;
                     lv_obj_set_pos(obj, 0, 0);
                     lv_obj_set_size(obj, LV_PCT(97), 80);
                     lv_obj_set_style_pad_left(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -1746,7 +1726,7 @@ void create_screen_applist() {
                     lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    create_user_widget_app_entry(obj, 89);
+                    create_user_widget_app_entry(obj, 84);
                     lv_obj_clear_flag(obj, LV_OBJ_FLAG_CLICKABLE);
                     add_style_op_entry(obj);
                 }
@@ -1786,8 +1766,8 @@ void create_screen_applist() {
 }
 
 void tick_screen_applist() {
-    tick_user_widget_app_entry(82);
-    tick_user_widget_app_entry(89);
+    tick_user_widget_app_entry(77);
+    tick_user_widget_app_entry(84);
     {
         bool new_val = get_var_applist_hide_warning();
         bool cur_val = lv_obj_has_flag(objects.applist_no_app_label, LV_OBJ_FLAG_HIDDEN);
@@ -1805,16 +1785,16 @@ void create_screen_shell() {
     objects.shell = obj;
     lv_obj_set_pos(obj, 0, 0);
     lv_obj_set_size(obj, 360, 640);
-    lv_obj_add_event_cb(obj, action_screen_loaded_cb, LV_EVENT_SCREEN_LOADED, (void *)10);
+    lv_obj_add_event_cb(obj, action_screen_loaded_cb, LV_EVENT_SCREEN_LOADED, (void *)11);
     lv_obj_add_event_cb(obj, event_handler_cb_shell_shell, LV_EVENT_ALL, 0);
     {
         lv_obj_t *parent_obj = obj;
         {
-            // shell_container
+            // shell_header_panel
             lv_obj_t *obj = lv_obj_create(parent_obj);
-            objects.shell_container = obj;
-            lv_obj_set_pos(obj, 0, 0);
-            lv_obj_set_size(obj, 360, 640);
+            objects.shell_header_panel = obj;
+            lv_obj_set_pos(obj, 12, 12);
+            lv_obj_set_size(obj, 336, 84);
             lv_obj_set_style_pad_left(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_pad_top(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_pad_right(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -1822,6 +1802,308 @@ void create_screen_shell() {
             lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            {
+                lv_obj_t *parent_obj = obj;
+                {
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    lv_obj_set_pos(obj, 8, 4);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    add_style_label_large(obj);
+                    lv_label_set_text(obj, "Shell");
+                }
+                {
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    lv_obj_set_pos(obj, 8, 33);
+                    lv_obj_set_size(obj, 310, LV_SIZE_CONTENT);
+                    add_style_label_small(obj);
+                    lv_label_set_text(obj, "外接键盘可直接输入；没有键盘时，使用下方维护命令");
+                }
+                {
+                    // shell_status_label
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    objects.shell_status_label = obj;
+                    lv_obj_set_pos(obj, 8, 67);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    add_style_label_small(obj);
+                    lv_label_set_text(obj, "会话: 未运行");
+                }
+                {
+                    // shell_keyboard_label
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    objects.shell_keyboard_label = obj;
+                    lv_obj_set_pos(obj, 168, 67);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    add_style_label_small(obj);
+                    lv_label_set_text(obj, "键盘: 未连接");
+                }
+            }
+        }
+        {
+            // shell_terminal_panel
+            lv_obj_t *obj = lv_obj_create(parent_obj);
+            objects.shell_terminal_panel = obj;
+            lv_obj_set_pos(obj, 12, 108);
+            lv_obj_set_size(obj, 336, 320);
+            lv_obj_set_style_pad_left(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_top(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_right(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_scrollbar_mode(obj, LV_SCROLLBAR_MODE_ON);
+            lv_obj_set_scroll_dir(obj, LV_DIR_VER);
+            {
+                lv_obj_t *parent_obj = obj;
+                {
+                    // shell_terminal_label
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    objects.shell_terminal_label = obj;
+                    lv_obj_set_pos(obj, 8, 8);
+                    lv_obj_set_size(obj, 320, LV_SIZE_CONTENT);
+                    add_style_label_small(obj);
+                    lv_label_set_text(obj, "");
+                }
+            }
+        }
+        {
+            // shell_quick_panel
+            lv_obj_t *obj = lv_obj_create(parent_obj);
+            objects.shell_quick_panel = obj;
+            lv_obj_set_pos(obj, 12, 428);
+            lv_obj_set_size(obj, 336, 136);
+            lv_obj_set_style_pad_left(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_top(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_right(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            {
+                lv_obj_t *parent_obj = obj;
+                {
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    lv_obj_set_pos(obj, 12, 10);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    add_style_label_small(obj);
+                    lv_label_set_text(obj, "快捷操作");
+                }
+                {
+                    // shell_ip_btn
+                    lv_obj_t *obj = lv_button_create(parent_obj);
+                    objects.shell_ip_btn = obj;
+                    lv_obj_set_pos(obj, 12, 36);
+                    lv_obj_set_size(obj, 146, 22);
+                    add_style_main_small_btn(obj);
+                    {
+                        lv_obj_t *parent_obj = obj;
+                        {
+                            lv_obj_t *obj = lv_label_create(parent_obj);
+                            lv_obj_set_pos(obj, 0, -8);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            add_style_label_small(obj);
+                            lv_label_set_text(obj, "查看 IP");
+                        }
+                    }
+                }
+                {
+                    // shell_route_btn
+                    lv_obj_t *obj = lv_button_create(parent_obj);
+                    objects.shell_route_btn = obj;
+                    lv_obj_set_pos(obj, 168, 36);
+                    lv_obj_set_size(obj, 146, 22);
+                    add_style_main_small_btn(obj);
+                    {
+                        lv_obj_t *parent_obj = obj;
+                        {
+                            lv_obj_t *obj = lv_label_create(parent_obj);
+                            lv_obj_set_pos(obj, 0, -7);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            add_style_label_small(obj);
+                            lv_label_set_text(obj, "查看路由");
+                        }
+                    }
+                }
+                {
+                    // shell_usb_rndis_btn
+                    lv_obj_t *obj = lv_button_create(parent_obj);
+                    objects.shell_usb_rndis_btn = obj;
+                    lv_obj_set_pos(obj, 12, 60);
+                    lv_obj_set_size(obj, 146, 22);
+                    add_style_main_small_btn(obj);
+                    {
+                        lv_obj_t *parent_obj = obj;
+                        {
+                            lv_obj_t *obj = lv_label_create(parent_obj);
+                            lv_obj_set_pos(obj, 0, -8);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            add_style_label_small(obj);
+                            lv_label_set_text(obj, "切 RNDIS");
+                        }
+                    }
+                }
+                {
+                    // shell_usb_mtp_btn
+                    lv_obj_t *obj = lv_button_create(parent_obj);
+                    objects.shell_usb_mtp_btn = obj;
+                    lv_obj_set_pos(obj, 168, 60);
+                    lv_obj_set_size(obj, 146, 22);
+                    add_style_main_small_btn(obj);
+                    {
+                        lv_obj_t *parent_obj = obj;
+                        {
+                            lv_obj_t *obj = lv_label_create(parent_obj);
+                            lv_obj_set_pos(obj, 0, -8);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            add_style_label_small(obj);
+                            lv_label_set_text(obj, "切 MTP");
+                        }
+                    }
+                }
+                {
+                    // shell_usb_report_btn
+                    lv_obj_t *obj = lv_button_create(parent_obj);
+                    objects.shell_usb_report_btn = obj;
+                    lv_obj_set_pos(obj, 12, 84);
+                    lv_obj_set_size(obj, 146, 22);
+                    add_style_main_small_btn(obj);
+                    {
+                        lv_obj_t *parent_obj = obj;
+                        {
+                            lv_obj_t *obj = lv_label_create(parent_obj);
+                            lv_obj_set_pos(obj, 0, -7);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            add_style_label_small(obj);
+                            lv_label_set_text(obj, "USB 诊断");
+                        }
+                    }
+                }
+                {
+                    // shell_service_log_btn
+                    lv_obj_t *obj = lv_button_create(parent_obj);
+                    objects.shell_service_log_btn = obj;
+                    lv_obj_set_pos(obj, 168, 84);
+                    lv_obj_set_size(obj, 146, 22);
+                    add_style_main_small_btn(obj);
+                    {
+                        lv_obj_t *parent_obj = obj;
+                        {
+                            lv_obj_t *obj = lv_label_create(parent_obj);
+                            lv_obj_set_pos(obj, 0, -7);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            add_style_label_small(obj);
+                            lv_label_set_text(obj, "服务日志");
+                        }
+                    }
+                }
+                {
+                    // shell_mem_btn
+                    lv_obj_t *obj = lv_button_create(parent_obj);
+                    objects.shell_mem_btn = obj;
+                    lv_obj_set_pos(obj, 12, 108);
+                    lv_obj_set_size(obj, 146, 22);
+                    add_style_main_small_btn(obj);
+                    {
+                        lv_obj_t *parent_obj = obj;
+                        {
+                            lv_obj_t *obj = lv_label_create(parent_obj);
+                            lv_obj_set_pos(obj, 0, -7);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            add_style_label_small(obj);
+                            lv_label_set_text(obj, "内存");
+                        }
+                    }
+                }
+                {
+                    // shell_disk_btn
+                    lv_obj_t *obj = lv_button_create(parent_obj);
+                    objects.shell_disk_btn = obj;
+                    lv_obj_set_pos(obj, 168, 108);
+                    lv_obj_set_size(obj, 146, 22);
+                    add_style_main_small_btn(obj);
+                    {
+                        lv_obj_t *parent_obj = obj;
+                        {
+                            lv_obj_t *obj = lv_label_create(parent_obj);
+                            lv_obj_set_pos(obj, 0, -7);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            add_style_label_small(obj);
+                            lv_label_set_text(obj, "磁盘");
+                        }
+                    }
+                }
+            }
+        }
+        {
+            // shell_footer_panel
+            lv_obj_t *obj = lv_obj_create(parent_obj);
+            objects.shell_footer_panel = obj;
+            lv_obj_set_pos(obj, 12, 574);
+            lv_obj_set_size(obj, 336, 54);
+            lv_obj_set_style_pad_left(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_top(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_right(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            {
+                lv_obj_t *parent_obj = obj;
+                {
+                    // shell_clear_btn
+                    lv_obj_t *obj = lv_button_create(parent_obj);
+                    objects.shell_clear_btn = obj;
+                    lv_obj_set_pos(obj, 12, 7);
+                    lv_obj_set_size(obj, 98, 40);
+                    add_style_main_btn(obj);
+                    {
+                        lv_obj_t *parent_obj = obj;
+                        {
+                            lv_obj_t *obj = lv_label_create(parent_obj);
+                            lv_obj_set_pos(obj, 19, 2);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            add_style_label_small(obj);
+                            lv_label_set_text(obj, "清屏");
+                        }
+                    }
+                }
+                {
+                    // shell_restart_btn
+                    lv_obj_t *obj = lv_button_create(parent_obj);
+                    objects.shell_restart_btn = obj;
+                    lv_obj_set_pos(obj, 119, 7);
+                    lv_obj_set_size(obj, 98, 40);
+                    add_style_main_btn(obj);
+                    {
+                        lv_obj_t *parent_obj = obj;
+                        {
+                            lv_obj_t *obj = lv_label_create(parent_obj);
+                            lv_obj_set_pos(obj, 19, 2);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            add_style_label_small(obj);
+                            lv_label_set_text(obj, "重开");
+                        }
+                    }
+                }
+                {
+                    // shell_nav_back_btn
+                    lv_obj_t *obj = lv_button_create(parent_obj);
+                    objects.shell_nav_back_btn = obj;
+                    lv_obj_set_pos(obj, 226, 7);
+                    lv_obj_set_size(obj, 98, 40);
+                    add_style_main_btn(obj);
+                    {
+                        lv_obj_t *parent_obj = obj;
+                        {
+                            lv_obj_t *obj = lv_label_create(parent_obj);
+                            lv_obj_set_pos(obj, 19, 2);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            add_style_label_small(obj);
+                            lv_label_set_text(obj, "返回");
+                        }
+                    }
+                }
+            }
         }
     }
     
@@ -1836,16 +2118,16 @@ void create_screen_net() {
     objects.net = obj;
     lv_obj_set_pos(obj, 0, 0);
     lv_obj_set_size(obj, 360, 640);
-    lv_obj_add_event_cb(obj, action_screen_loaded_cb, LV_EVENT_SCREEN_LOADED, (void *)11);
+    lv_obj_add_event_cb(obj, action_screen_loaded_cb, LV_EVENT_SCREEN_LOADED, (void *)12);
     lv_obj_add_event_cb(obj, event_handler_cb_net_net, LV_EVENT_ALL, 0);
     {
         lv_obj_t *parent_obj = obj;
         {
-            // net_container
+            // net_header_panel
             lv_obj_t *obj = lv_obj_create(parent_obj);
-            objects.net_container = obj;
-            lv_obj_set_pos(obj, 0, 0);
-            lv_obj_set_size(obj, 360, 640);
+            objects.net_header_panel = obj;
+            lv_obj_set_pos(obj, 12, 12);
+            lv_obj_set_size(obj, 336, 72);
             lv_obj_set_style_pad_left(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_pad_top(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_pad_right(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -1853,6 +2135,210 @@ void create_screen_net() {
             lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            {
+                lv_obj_t *parent_obj = obj;
+                {
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    lv_obj_set_pos(obj, 12, 7);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    add_style_label_large(obj);
+                    lv_label_set_text(obj, "网络 / USB");
+                }
+                {
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    lv_obj_set_pos(obj, 12, 35);
+                    lv_obj_set_size(obj, 312, LV_SIZE_CONTENT);
+                    add_style_label_small(obj);
+                    lv_label_set_text(obj, "查看 RNDIS 链路、地址、路由和 gadget 状态，并直接切换 USB 模式");
+                }
+            }
+        }
+        {
+            // net_mode_card
+            lv_obj_t *obj = lv_obj_create(parent_obj);
+            objects.net_mode_card = obj;
+            lv_obj_set_pos(obj, 12, 96);
+            lv_obj_set_size(obj, 162, 76);
+            lv_obj_set_style_pad_left(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_top(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_right(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            {
+                lv_obj_t *parent_obj = obj;
+                {
+                    // net_mode_label
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    objects.net_mode_label = obj;
+                    lv_obj_set_pos(obj, 10, 0);
+                    lv_obj_set_size(obj, 142, LV_SIZE_CONTENT);
+                    add_style_label_small(obj);
+                    lv_label_set_text(obj, "请求模式\nmtp\n应用结果\nunknown");
+                }
+            }
+        }
+        {
+            // net_detail_panel
+            lv_obj_t *obj = lv_obj_create(parent_obj);
+            objects.net_detail_panel = obj;
+            lv_obj_set_pos(obj, 12, 172);
+            lv_obj_set_size(obj, 336, 312);
+            lv_obj_set_style_pad_left(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_top(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_right(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_scrollbar_mode(obj, LV_SCROLLBAR_MODE_ON);
+            lv_obj_set_scroll_dir(obj, LV_DIR_VER);
+            {
+                lv_obj_t *parent_obj = obj;
+                {
+                    // net_detail_label
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    objects.net_detail_label = obj;
+                    lv_obj_set_pos(obj, 10, 10);
+                    lv_obj_set_size(obj, 316, LV_SIZE_CONTENT);
+                    add_style_label_small(obj);
+                    lv_label_set_text(obj, "loading...");
+                }
+            }
+        }
+        {
+            // net_status_card
+            lv_obj_t *obj = lv_obj_create(parent_obj);
+            objects.net_status_card = obj;
+            lv_obj_set_pos(obj, 180, 96);
+            lv_obj_set_size(obj, 162, 76);
+            lv_obj_set_style_pad_left(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_top(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_right(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            {
+                lv_obj_t *parent_obj = obj;
+                {
+                    // net_status_label
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    objects.net_status_label = obj;
+                    lv_obj_set_pos(obj, 10, 8);
+                    lv_obj_set_size(obj, 142, LV_SIZE_CONTENT);
+                    add_style_label_small(obj);
+                    lv_label_set_text(obj, "链路状态\nusb0 未发现");
+                }
+            }
+        }
+        {
+            // net_action_panel
+            lv_obj_t *obj = lv_obj_create(parent_obj);
+            objects.net_action_panel = obj;
+            lv_obj_set_pos(obj, 12, 484);
+            lv_obj_set_size(obj, 336, 144);
+            lv_obj_set_style_pad_left(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_top(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_right(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            {
+                lv_obj_t *parent_obj = obj;
+                {
+                    // net_refresh_btn
+                    lv_obj_t *obj = lv_button_create(parent_obj);
+                    objects.net_refresh_btn = obj;
+                    lv_obj_set_pos(obj, 10, 17);
+                    lv_obj_set_size(obj, 98, 40);
+                    add_style_main_btn(obj);
+                    {
+                        lv_obj_t *parent_obj = obj;
+                        {
+                            lv_obj_t *obj = lv_label_create(parent_obj);
+                            lv_obj_set_pos(obj, 18, 3);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            add_style_label_small(obj);
+                            lv_label_set_text(obj, "刷新");
+                        }
+                    }
+                }
+                {
+                    // net_rndis_btn
+                    lv_obj_t *obj = lv_button_create(parent_obj);
+                    objects.net_rndis_btn = obj;
+                    lv_obj_set_pos(obj, 115, 18);
+                    lv_obj_set_size(obj, 98, 40);
+                    add_style_main_btn(obj);
+                    {
+                        lv_obj_t *parent_obj = obj;
+                        {
+                            lv_obj_t *obj = lv_label_create(parent_obj);
+                            lv_obj_set_pos(obj, 4, 2);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            add_style_label_small(obj);
+                            lv_label_set_text(obj, "切 RNDIS");
+                        }
+                    }
+                }
+                {
+                    // net_mtp_btn
+                    lv_obj_t *obj = lv_button_create(parent_obj);
+                    objects.net_mtp_btn = obj;
+                    lv_obj_set_pos(obj, 226, 18);
+                    lv_obj_set_size(obj, 98, 40);
+                    add_style_main_btn(obj);
+                    {
+                        lv_obj_t *parent_obj = obj;
+                        {
+                            lv_obj_t *obj = lv_label_create(parent_obj);
+                            lv_obj_set_pos(obj, 11, 2);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            add_style_label_small(obj);
+                            lv_label_set_text(obj, "切 MTP");
+                        }
+                    }
+                }
+                {
+                    // net_shell_btn
+                    lv_obj_t *obj = lv_button_create(parent_obj);
+                    objects.net_shell_btn = obj;
+                    lv_obj_set_pos(obj, 10, 77);
+                    lv_obj_set_size(obj, 152, 40);
+                    add_style_main_btn(obj);
+                    {
+                        lv_obj_t *parent_obj = obj;
+                        {
+                            lv_obj_t *obj = lv_label_create(parent_obj);
+                            lv_obj_set_pos(obj, 23, 2);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            add_style_label_small(obj);
+                            lv_label_set_text(obj, "进入 Shell");
+                        }
+                    }
+                }
+                {
+                    // net_nav_back_btn
+                    lv_obj_t *obj = lv_button_create(parent_obj);
+                    objects.net_nav_back_btn = obj;
+                    lv_obj_set_pos(obj, 172, 77);
+                    lv_obj_set_size(obj, 152, 40);
+                    add_style_main_btn(obj);
+                    {
+                        lv_obj_t *parent_obj = obj;
+                        {
+                            lv_obj_t *obj = lv_label_create(parent_obj);
+                            lv_obj_set_pos(obj, 46, 2);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            add_style_label_small(obj);
+                            lv_label_set_text(obj, "返回");
+                        }
+                    }
+                }
+            }
         }
     }
     

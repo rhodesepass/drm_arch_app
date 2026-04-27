@@ -1,6 +1,6 @@
 {
   "navigation": {
-    "selectedUserPageObject": "[epass.eez-project]:/userPages/12",
+    "selectedUserPageObject": "[epass.eez-project]:/userPages/11",
     "selectedUserWidgetObject": "[epass.eez-project]:/userWidgets/1",
     "selectedActionObject": "[epass.eez-project]:/actions/16",
     "selectedGlobalVariableObject": "[epass.eez-project]:/variables/globalVariables/14",
@@ -202,11 +202,11 @@
               "children": [
                 {
                   "type": "tab",
-                  "id": "#1c3a9dfb-b1bd-4b33-9409-491040c7ef53",
-                  "name": "net",
+                  "id": "#ebb1fe6a-df8e-4de7-a8da-6490d0e16b53",
+                  "name": "shell",
                   "component": "editor",
                   "config": {
-                    "objectPath": "[epass.eez-project]:/userPages/12",
+                    "objectPath": "[epass.eez-project]:/userPages/11",
                     "permanent": false
                   },
                   "icon": "svg:page"
@@ -1093,7 +1093,7 @@
           "x": -180,
           "y": -320
         },
-        "scale": 1.25
+        "scale": 1
       },
       "timeline": {
         "isEditorActive": false,
@@ -1174,10 +1174,10 @@
         "0": {
           "0": {},
           "1": {},
-          "14": {
+          "14": {},
+          "16": {
             "$selected": true
           },
-          "16": {},
           "18": {}
         }
       },
@@ -1261,12 +1261,16 @@
     },
     "[epass.eez-project]:/userPages/9[flow-state]": {
       "selection": {
-        "0": {}
+        "0": {
+          "4": {
+            "$selected": true
+          }
+        }
       },
       "transform": {
         "translate": {
-          "x": -140.4880786132813,
-          "y": -261.28753280639637
+          "x": -160,
+          "y": -340
         },
         "scale": 1
       },
@@ -1298,11 +1302,7 @@
     },
     "[epass.eez-project]:/userPages/10[flow-state]": {
       "selection": {
-        "0": {
-          "4": {
-            "$selected": true
-          }
-        }
+        "0": {}
       },
       "transform": {
         "translate": {
@@ -1321,15 +1321,18 @@
     "[epass.eez-project]:/userPages/11[flow-state]": {
       "selection": {
         "0": {
-          "0": {
-            "$selected": true
+          "0": {},
+          "1": {},
+          "2": {},
+          "3": {
+            "0": {}
           }
         }
       },
       "transform": {
         "translate": {
           "x": -227.2840472412112,
-          "y": -440
+          "y": -340
         },
         "scale": 1
       },
@@ -1343,15 +1346,29 @@
     "[epass.eez-project]:/userPages/12[flow-state]": {
       "selection": {
         "0": {
-          "0": {
-            "$selected": true
+          "0": {},
+          "1": {
+            "0": {
+              "$selected": true
+            }
+          },
+          "2": {},
+          "3": {
+            "0": {}
+          },
+          "4": {
+            "0": {},
+            "1": {},
+            "2": {},
+            "3": {},
+            "4": {}
           }
         }
       },
       "transform": {
         "translate": {
           "x": -224.64403747558598,
-          "y": -402.3999938964844
+          "y": -302.3999938964844
         },
         "scale": 1
       },

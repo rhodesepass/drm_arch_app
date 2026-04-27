@@ -10,6 +10,7 @@ APP_DIR=/app
 STATE_DIR=/var/lib/epass
 STATE_FILE=${STATE_DIR}/app-import-state.tsv
 TMP_ROOT=/tmp/epass-app-import
+CHANGED=0
 
 log_line() {
     local level="$1"
@@ -93,6 +94,7 @@ install_package_root() {
     rm -rf "${APP_DIR}/${install_name}"
     mv "${install_tmp}" "${APP_DIR}/${install_name}"
     state_put "${state_key}" "${fingerprint}"
+    CHANGED=1
     log_line "INFO" "installed ${source_name} -> ${APP_DIR}/${install_name}"
     return 0
 }
@@ -159,7 +161,7 @@ main() {
     local archive
     local app_dir
 
-    [ -d "${INBOX_DIR}" ] || exit 0
+    [ -d "${INBOX_DIR}" ] || exit 10
     mkdir -p "${TMP_ROOT}" "${APP_DIR}" "${STATE_DIR}" 2>/dev/null || true
 
     while IFS= read -r -d '' archive; do
@@ -169,6 +171,10 @@ main() {
     while IFS= read -r -d '' app_dir; do
         install_directory "${app_dir}" || true
     done < <(find "${INBOX_DIR}" -maxdepth 1 -mindepth 1 -type d ! -name '.*' -print0 | sort -z)
+
+    if [ "${CHANGED}" -eq 0 ]; then
+        exit 10
+    fi
 
     exit 0
 }

@@ -5,6 +5,7 @@
 #include "utils/log.h"
 #include "utils/misc.h"
 #include "config.h"
+#include "ui/scr_transition.h"
 
 #include <arpa/inet.h>
 #include <ifaddrs.h>
@@ -271,6 +272,26 @@ static int read_compatible_token(char *buf, size_t buf_sz) {
     }
 }
 
+static bool map_soc_from_string(const char *raw, char *buf, size_t buf_sz) {
+    if (raw == NULL || buf == NULL || buf_sz == 0) {
+        return false;
+    }
+
+    if (strstr(raw, "suniv-f1c100s") != NULL ||
+        strstr(raw, "f1c100s") != NULL) {
+        safe_strcpy(buf, buf_sz, "Allwinner F1C100S");
+        return true;
+    }
+
+    if (strstr(raw, "suniv-f1c200s") != NULL ||
+        strstr(raw, "f1c200s") != NULL) {
+        safe_strcpy(buf, buf_sz, "Allwinner F1C200S");
+        return true;
+    }
+
+    return false;
+}
+
 static void clear_pressed_state(lv_event_t *e) {
     lv_obj_t *obj;
 
@@ -380,16 +401,24 @@ const char *get_var_soc_detail(){
     static char buf[128];
 
     if(read_compatible_token(buf, sizeof(buf)) == 0 && buf[0] != '\0'){
-        return buf;
+        if (map_soc_from_string(buf, buf, sizeof(buf))) {
+            return buf;
+        }
     }
     if(read_cpuinfo_field("Hardware", buf, sizeof(buf)) == 0 && buf[0] != '\0'){
+        if (map_soc_from_string(buf, buf, sizeof(buf))) {
+            return buf;
+        }
         return buf;
     }
     if(read_cpuinfo_field("system type", buf, sizeof(buf)) == 0 && buf[0] != '\0'){
+        if (map_soc_from_string(buf, buf, sizeof(buf))) {
+            return buf;
+        }
         return buf;
     }
 
-    return "Allwinner F1C200S";
+    return "Allwinner F1C100S";
 }
 
 void set_var_soc_detail(const char *value){
@@ -499,7 +528,7 @@ void set_var_codename_detail(const char *value){
 void action_show_sys(lv_event_t * e){
     log_debug("action_show_sys");
     clear_pressed_state(e);
-    loadScreen(SCREEN_ID_SYSINFO2);
+    ui_push_screen_transition(curr_screen_t_SCREEN_SYSINFO2);
 }
 
 void action_show_net(lv_event_t * e){
@@ -512,7 +541,7 @@ void action_show_net(lv_event_t * e){
 
     log_debug("action_show_net");
     clear_pressed_state(e);
-    loadScreen(SCREEN_ID_NET);
+    ui_push_screen_transition(curr_screen_t_SCREEN_NET);
 }
 
 void action_show_shell(lv_event_t * e){
@@ -525,5 +554,5 @@ void action_show_shell(lv_event_t * e){
 
     log_debug("action_show_shell");
     clear_pressed_state(e);
-    loadScreen(SCREEN_ID_SHELL);
+    ui_push_screen_transition(curr_screen_t_SCREEN_SHELL);
 }

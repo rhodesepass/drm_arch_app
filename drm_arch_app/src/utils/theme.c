@@ -374,13 +374,23 @@ static void theme_apply_screens(const app_theme_entry_t *theme)
     }
 }
 
-int app_theme_init(void)
+static int app_theme_load(bool force_reload)
 {
     DIR *dir;
     struct dirent *entry;
+    char active_id[APP_THEME_ID_MAX];
+    app_theme_entry_t *active_theme = NULL;
 
-    if (g_theme_state.initialized) {
+    if (g_theme_state.initialized && !force_reload) {
         return 0;
+    }
+
+    active_id[0] = '\0';
+    if (g_theme_state.initialized) {
+        active_theme = theme_get_active();
+        if (active_theme != NULL) {
+            safe_strcpy(active_id, sizeof(active_id), active_theme->id);
+        }
     }
 
     memset(&g_theme_state, 0, sizeof(g_theme_state));
@@ -406,7 +416,18 @@ int app_theme_init(void)
     }
 
     theme_rebuild_options();
-    theme_load_active_from_disk();
+    if (active_id[0] != '\0') {
+        int index = theme_find_index_by_id(active_id);
+
+        if (index >= 0) {
+            g_theme_state.active_index = (uint32_t)index;
+            theme_save_active();
+        } else {
+            theme_load_active_from_disk();
+        }
+    } else {
+        theme_load_active_from_disk();
+    }
     g_theme_state.initialized = true;
 
     log_info(
@@ -415,6 +436,22 @@ int app_theme_init(void)
         theme_get_active()->id
     );
     return 0;
+}
+
+int app_theme_init(void)
+{
+    return app_theme_load(false);
+}
+
+int app_theme_reload(void)
+{
+    int rc = app_theme_load(true);
+
+    if (rc == 0) {
+        app_theme_refresh_ui();
+    }
+
+    return rc;
 }
 
 int32_t app_theme_get_active_index(void)

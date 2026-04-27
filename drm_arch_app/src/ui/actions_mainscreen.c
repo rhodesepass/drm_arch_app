@@ -41,6 +41,10 @@ void action_show_sysinfo(lv_event_t * e){
     log_debug("action_show_sysinfo");
     lv_obj_t* obj = lv_event_get_target(e);
     lv_obj_remove_state(obj, LV_STATE_PRESSED);
+    if (ui_get_current_screen() == curr_screen_t_SCREEN_SYSINFO2) {
+        ui_pop_screen_transition(curr_screen_t_SCREEN_SYSINFO);
+        return;
+    }
     ui_schedule_screen_transition(curr_screen_t_SCREEN_SYSINFO);
 }
 void action_show_settings(lv_event_t * e){

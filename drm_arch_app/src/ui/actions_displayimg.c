@@ -10,6 +10,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <stdatomic.h>
+#include <sys/stat.h>
 #include "lvgl.h"
 
 static ui_displayimg_t g_displayimg;
@@ -18,6 +19,7 @@ static lv_timer_t *g_displayimg_refresh_timer = NULL;
 static pthread_mutex_t g_displayimg_refresh_mutex = PTHREAD_MUTEX_INITIALIZER;
 static atomic_int g_displayimg_refresh_running = 0;
 static atomic_int g_displayimg_refresh_ready = 0;
+static uint64_t g_displayimg_refresh_token = 0;
 
 // =========================================
 // 自己添加的方法 START
@@ -44,6 +46,18 @@ static ui_displayimg_file_type_t displayimg_file_type(const char *filename){
     if (strcmp(ext, "gif") == 0) return UI_DISPLAYIMG_FILE_TYPE_GIF;
 
     return UI_DISPLAYIMG_FILE_TYPE_INVALID;
+}
+
+static uint64_t displayimg_dir_refresh_token(void){
+    struct stat st;
+
+    if (stat(DISPLAYIMG_PATH, &st) != 0) {
+        return 0;
+    }
+
+    return ((uint64_t)st.st_mtime << 32) ^
+           (uint64_t)st.st_size ^
+           ((uint64_t)st.st_ino << 1);
 }
 
 static void display_img(ui_displayimg_file_t *file){
@@ -143,6 +157,8 @@ static void ui_displayimg_apply_snapshot(const ui_displayimg_t *snapshot){
     } else {
         display_img_clear();
     }
+
+    g_displayimg_refresh_token = displayimg_dir_refresh_token();
 }
 
 static void *ui_displayimg_refresh_worker(void *userdata){
@@ -186,6 +202,7 @@ static void ui_displayimg_refresh_timer_cb(lv_timer_t *timer){
 
 void ui_displayimg_init(){
     ui_displayimg_scan(&g_displayimg);
+    g_displayimg_refresh_token = displayimg_dir_refresh_token();
     if(g_displayimg.count != 0){
         display_img(&g_displayimg.files[0]);
     } else {
@@ -199,9 +216,15 @@ void ui_displayimg_init(){
 
 void ui_displayimg_request_refresh(void){
     pthread_t worker;
+    uint64_t token;
 
     if (atomic_load(&g_displayimg_refresh_ready) != 0 ||
         atomic_load(&g_displayimg_refresh_running) != 0) {
+        return;
+    }
+
+    token = displayimg_dir_refresh_token();
+    if (token == g_displayimg_refresh_token) {
         return;
     }
 
@@ -210,6 +233,7 @@ void ui_displayimg_request_refresh(void){
         log_error("displayimg: failed to create background refresh thread");
         atomic_store(&g_displayimg_refresh_running, 0);
         ui_displayimg_scan(&g_displayimg);
+        g_displayimg_refresh_token = displayimg_dir_refresh_token();
         if (g_displayimg.count != 0) {
             display_img(&g_displayimg.files[g_displayimg.index]);
         } else {

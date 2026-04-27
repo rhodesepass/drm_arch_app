@@ -9,8 +9,10 @@
 #include <pthread.h>
 #include <stdatomic.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include "ui.h"
+#include "config.h"
 #include "utils/log.h"
 #include "prts/prts.h"
 #include "ui/actions_oplist.h"
@@ -27,6 +29,7 @@ static pthread_mutex_t g_ui_oplist_refresh_mutex = PTHREAD_MUTEX_INITIALIZER;
 static atomic_int g_ui_oplist_refresh_running = 0;
 static atomic_int g_ui_oplist_refresh_ready = 0;
 static prts_catalog_snapshot_t g_ui_oplist_pending_snapshot;
+static uint64_t g_ui_oplist_refresh_token = 0;
 
 // 防递归标志 - 防止虚拟滚动时焦点事件递归触发
 static bool g_scroll_in_progress = false;
@@ -36,6 +39,18 @@ static void update_slot_content(int slot_idx, int operator_idx);
 static void oplist_focus_cb(lv_event_t *e);
 static void refocus_to_operator(int op_idx);
 static void ui_oplist_apply_pending_refresh(void);
+
+static uint64_t ui_oplist_catalog_refresh_token(void) {
+    struct stat st;
+
+    if (stat(PRTS_ASSET_DIR, &st) != 0) {
+        return 0;
+    }
+
+    return ((uint64_t)st.st_mtime << 32) ^
+           (uint64_t)st.st_size ^
+           ((uint64_t)st.st_ino << 1);
+}
 
 static void *ui_oplist_refresh_worker(void *userdata) {
     prts_catalog_snapshot_t snapshot;
@@ -255,6 +270,7 @@ void ui_oplist_init(prts_t* prts){
     g_ui_oplist.prts = prts;
     g_ui_oplist.total_count = prts->operator_count;
     g_ui_oplist.visible_start = 0;
+    g_ui_oplist_refresh_token = ui_oplist_catalog_refresh_token();
 
     log_info("START prts->ui sync (virtual scroll mode)!! Total operators: %d", prts->operator_count);
 
@@ -286,6 +302,7 @@ void ui_oplist_init(prts_t* prts){
 void ui_oplist_refresh_catalog(void)
 {
     pthread_t worker;
+    uint64_t token;
 
     if (g_ui_oplist.prts == NULL) {
         return;
@@ -296,11 +313,17 @@ void ui_oplist_refresh_catalog(void)
         return;
     }
 
+    token = ui_oplist_catalog_refresh_token();
+    if (token == g_ui_oplist_refresh_token) {
+        return;
+    }
+
     atomic_store(&g_ui_oplist_refresh_running, 1);
     if (pthread_create(&worker, NULL, ui_oplist_refresh_worker, NULL) != 0) {
         log_error("oplist: failed to create background refresh thread");
         atomic_store(&g_ui_oplist_refresh_running, 0);
         prts_reload_catalog(g_ui_oplist.prts, g_use_sd);
+        g_ui_oplist_refresh_token = ui_oplist_catalog_refresh_token();
         ui_oplist_init(g_ui_oplist.prts);
         return;
     }
@@ -370,6 +393,7 @@ static void ui_oplist_apply_pending_refresh(void)
     }
 
     atomic_store(&g_ui_oplist_refresh_ready, 0);
+    g_ui_oplist_refresh_token = ui_oplist_catalog_refresh_token();
     ui_oplist_init(g_ui_oplist.prts);
     add_oplist_btn_to_group();
     ui_oplist_focus_uuid_or_current(&focused_uuid, has_focus_uuid);

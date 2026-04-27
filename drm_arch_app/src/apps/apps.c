@@ -89,8 +89,8 @@ int apps_init(apps_t *apps, prts_t *prts, bool use_sd) {
     apps->prts = prts;
     apps->parse_log_f = NULL;
 
-    // Shared-folder app packages are imported by drm-arch-app-runner.sh
-    // before the UI process starts. apps_init() only scans the installed tree.
+    // Shared-folder app packages are imported on demand from the App List page.
+    // apps_init() only scans the installed tree to avoid adding boot-time IO.
     apps_scan_catalog(apps, use_sd, true);
 
     prts_timer_create(&apps->bg_app_check_timer, 0, APPS_BG_APP_CHECK_PERIOD, -1,

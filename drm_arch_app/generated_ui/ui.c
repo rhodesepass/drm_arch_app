@@ -29,18 +29,47 @@ void ui_tick() {
 
 #include <string.h>
 
-static int16_t currentScreen = -1;
+static enum ScreensEnum currentScreen = 0;
 
-static lv_obj_t *getLvglObjectFromIndex(int32_t index) {
-    if (index == -1) {
-        return 0;
+static lv_obj_t *get_screen_object(enum ScreensEnum screenId) {
+    switch (screenId) {
+        case SCREEN_ID_MAINMENU:
+            return objects.mainmenu;
+        case SCREEN_ID_DISPLAYIMG:
+            return objects.displayimg;
+        case SCREEN_ID_OPLIST:
+            return objects.oplist;
+        case SCREEN_ID_SYSINFO:
+            return objects.sysinfo;
+        case SCREEN_ID_SYSINFO2:
+            return objects.sysinfo2;
+        case SCREEN_ID_SPINNER:
+            return objects.spinner;
+        case SCREEN_ID_FILEMANAGER:
+            return objects.filemanager;
+        case SCREEN_ID_SETTINGS:
+            return objects.settings;
+        case SCREEN_ID_WARNING:
+            return objects.warning;
+        case SCREEN_ID_CONFIRM:
+            return objects.confirm;
+        case SCREEN_ID_APPLIST:
+            return objects.applist;
+        case SCREEN_ID_SHELL:
+            return objects.shell;
+        case SCREEN_ID_NET:
+            return objects.net;
+        default:
+            return 0;
     }
-    return ((lv_obj_t **)&objects)[index];
 }
 
 void loadScreen(enum ScreensEnum screenId) {
-    currentScreen = screenId - 1;
-    lv_obj_t *screen = getLvglObjectFromIndex(currentScreen);
+    lv_obj_t *screen = get_screen_object(screenId);
+    if (screen == 0) {
+        return;
+    }
+    currentScreen = screenId;
     lv_scr_load_anim(screen, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
 }
 
@@ -51,7 +80,9 @@ void ui_init() {
 }
 
 void ui_tick() {
-    tick_screen(currentScreen);
+    if (currentScreen != 0) {
+        tick_screen_by_id(currentScreen);
+    }
 }
 
 #endif

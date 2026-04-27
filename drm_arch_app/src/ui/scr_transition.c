@@ -16,8 +16,10 @@
 #include <ui/actions_displayimg.h>
 #include "ui/actions_confirm.h"
 #include "ui/shell_net.h"
+#include "utils/theme.h"
 #include "lvgl.h"
 #include <stdint.h>
+#include <string.h>
 
 extern int g_running;
 extern int g_exitcode;
@@ -25,6 +27,9 @@ extern int g_exitcode;
 static curr_screen_t g_cur_scr = curr_screen_t_SCREEN_SPINNER;
 static bool g_ui_hidden = true;
 static lv_timer_t *g_delayed_screen_timer = NULL;
+#define UI_SCREEN_HISTORY_MAX 8
+static curr_screen_t g_screen_history[UI_SCREEN_HISTORY_MAX];
+static uint32_t g_screen_history_size = 0;
 
 // =========================================
 // 自己添加的方法 START
@@ -45,6 +50,8 @@ inline static int get_screen_target_y(curr_screen_t screen){
         case curr_screen_t_SCREEN_SETTINGS:
             return 0;
         case curr_screen_t_SCREEN_SYSINFO:
+            return 0;
+        case curr_screen_t_SCREEN_SYSINFO2:
             return 0;
         case curr_screen_t_SCREEN_FILEMANAGER:
             return 0;
@@ -80,6 +87,9 @@ inline static void load_screen(curr_screen_t screen){
         case curr_screen_t_SCREEN_SYSINFO:
             loadScreen(SCREEN_ID_SYSINFO);
             break;
+        case curr_screen_t_SCREEN_SYSINFO2:
+            loadScreen(SCREEN_ID_SYSINFO2);
+            break;
         case curr_screen_t_SCREEN_FILEMANAGER:
             loadScreen(SCREEN_ID_FILEMANAGER);
             break;
@@ -96,6 +106,47 @@ inline static void load_screen(curr_screen_t screen){
             loadScreen(SCREEN_ID_NET);
             break;
     }
+}
+
+static void ui_history_push(curr_screen_t screen){
+    if (g_screen_history_size > 0 &&
+        g_screen_history[g_screen_history_size - 1] == screen) {
+        return;
+    }
+
+    if (g_screen_history_size >= UI_SCREEN_HISTORY_MAX) {
+        memmove(&g_screen_history[0],
+                &g_screen_history[1],
+                sizeof(g_screen_history[0]) * (UI_SCREEN_HISTORY_MAX - 1));
+        g_screen_history_size = UI_SCREEN_HISTORY_MAX - 1;
+    }
+
+    g_screen_history[g_screen_history_size++] = screen;
+}
+
+void ui_clear_screen_history(void){
+    g_screen_history_size = 0;
+}
+
+void ui_push_screen_transition(curr_screen_t to_screen){
+    if (g_cur_scr != to_screen) {
+        ui_history_push(g_cur_scr);
+    }
+    ui_schedule_screen_transition(to_screen);
+}
+
+void ui_pop_screen_transition(curr_screen_t fallback_screen){
+    curr_screen_t to_screen = fallback_screen;
+
+    while (g_screen_history_size > 0) {
+        curr_screen_t candidate = g_screen_history[--g_screen_history_size];
+        if (candidate != g_cur_scr) {
+            to_screen = candidate;
+            break;
+        }
+    }
+
+    ui_schedule_screen_transition(to_screen);
 }
 
 
@@ -176,6 +227,7 @@ void action_screen_loaded_cb(lv_event_t * e){
     log_debug("action_screen_loaded_cb: cur_scr = %d", g_cur_scr);
 
     if(g_cur_scr == curr_screen_t_SCREEN_SETTINGS){
+        app_theme_reload();
         ui_settings_load_ctrl_word();
     }
     else if(g_cur_scr == curr_screen_t_SCREEN_FILEMANAGER){
@@ -209,6 +261,7 @@ void screen_key_event_cb(uint32_t key){
     // 展示扩列图 界面，按下3/4按钮都可关闭
     if (g_cur_scr == curr_screen_t_SCREEN_DISPLAYIMG){
         if(key == LV_KEY_ESC || key == LV_KEY_ENTER){
+            ui_clear_screen_history();
             ui_schedule_screen_transition(curr_screen_t_SCREEN_SPINNER);
         }
         else{
@@ -220,6 +273,7 @@ void screen_key_event_cb(uint32_t key){
     // 主界面 和 干员列表
     if (g_cur_scr == curr_screen_t_SCREEN_MAINMENU || g_cur_scr == curr_screen_t_SCREEN_OPLIST){
         if(key == LV_KEY_ESC){
+            ui_clear_screen_history();
             ui_schedule_screen_transition(curr_screen_t_SCREEN_SPINNER);
         }
         return;
@@ -227,13 +281,21 @@ void screen_key_event_cb(uint32_t key){
 
     // 警告页面 按任何按钮都复归
     if (g_cur_scr == curr_screen_t_SCREEN_WARNING){
+        ui_clear_screen_history();
         ui_schedule_screen_transition(curr_screen_t_SCREEN_SPINNER);
+        return;
+    }
+
+    if (g_cur_scr == curr_screen_t_SCREEN_SYSINFO2){
+        if(key == LV_KEY_ESC){
+            ui_pop_screen_transition(curr_screen_t_SCREEN_SYSINFO);
+        }
         return;
     }
 
     if (g_cur_scr == curr_screen_t_SCREEN_SHELL || g_cur_scr == curr_screen_t_SCREEN_NET){
         if(key == LV_KEY_ESC){
-            loadScreen(SCREEN_ID_SYSINFO2);
+            ui_pop_screen_transition(curr_screen_t_SCREEN_SYSINFO2);
         }
         return;
     }
@@ -257,12 +319,15 @@ void screen_key_event_cb(uint32_t key){
         // go to oplist screen
         case LV_KEY_LEFT:
         case LV_KEY_RIGHT:
-           ui_schedule_screen_transition(curr_screen_t_SCREEN_OPLIST);
+           ui_clear_screen_history();
+           ui_push_screen_transition(curr_screen_t_SCREEN_OPLIST);
             break;
         case LV_KEY_ENTER:
-            ui_schedule_screen_transition(curr_screen_t_SCREEN_DISPLAYIMG);
+            ui_clear_screen_history();
+            ui_push_screen_transition(curr_screen_t_SCREEN_DISPLAYIMG);
             break;
         case LV_KEY_ESC:
+            ui_clear_screen_history();
             ui_schedule_screen_transition(curr_screen_t_SCREEN_MAINMENU);
             break;
     }

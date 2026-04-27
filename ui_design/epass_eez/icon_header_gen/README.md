@@ -1,3 +1,3 @@
-# 图标define生成
+# Icon Define Generation
 
-本文件读取eez-project中 选择了的Font Awesome图标，根据metadata生成对应的define。
+This tool reads the selected Font Awesome icons from the `eez-project` and generates the corresponding `#define` entries from the metadata.

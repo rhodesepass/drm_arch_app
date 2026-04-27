@@ -1,7 +1,7 @@
 #ifndef EEZ_LVGL_UI_SCREENS_H
 #define EEZ_LVGL_UI_SCREENS_H
 
-#include <lvgl.h>
+#include "lvgl.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,7 +25,6 @@ typedef struct _objects_t {
     lv_obj_t *filemanager;
     lv_obj_t *settings;
     lv_obj_t *warning;
-    lv_obj_t *confirm;
     lv_obj_t *applist;
     lv_obj_t *shell;
     lv_obj_t *net;
@@ -92,29 +91,58 @@ typedef struct _objects_t {
     lv_obj_t *warning_icon_label;
     lv_obj_t *warning_title_label;
     lv_obj_t *warning_desc_label;
-    lv_obj_t *obj10;
-    lv_obj_t *back_btn_2;
-    lv_obj_t *obj11;
-    lv_obj_t *obj12;
     lv_obj_t *app_container;
-    lv_obj_t *obj13;
-    lv_obj_t *obj13__appbtn;
-    lv_obj_t *obj13__applogo;
-    lv_obj_t *obj13__appdesc;
-    lv_obj_t *obj13__appname;
-    lv_obj_t *obj13__bgfg_flag;
-    lv_obj_t *obj13__sd_flag;
-    lv_obj_t *obj14;
-    lv_obj_t *obj14__appbtn;
-    lv_obj_t *obj14__applogo;
-    lv_obj_t *obj14__appdesc;
-    lv_obj_t *obj14__appname;
-    lv_obj_t *obj14__bgfg_flag;
-    lv_obj_t *obj14__sd_flag;
+    lv_obj_t *obj10;
+    lv_obj_t *obj10__appbtn;
+    lv_obj_t *obj10__applogo;
+    lv_obj_t *obj10__appdesc;
+    lv_obj_t *obj10__appname;
+    lv_obj_t *obj10__bgfg_flag;
+    lv_obj_t *obj10__sd_flag;
+    lv_obj_t *obj11;
+    lv_obj_t *obj11__appbtn;
+    lv_obj_t *obj11__applogo;
+    lv_obj_t *obj11__appdesc;
+    lv_obj_t *obj11__appname;
+    lv_obj_t *obj11__bgfg_flag;
+    lv_obj_t *obj11__sd_flag;
     lv_obj_t *applist_back_btn;
     lv_obj_t *applist_no_app_label;
-    lv_obj_t *shell_container;
-    lv_obj_t *net_container;
+    lv_obj_t *shell_header_panel;
+    lv_obj_t *shell_status_label;
+    lv_obj_t *shell_keyboard_label;
+    lv_obj_t *shell_terminal_panel;
+    lv_obj_t *shell_terminal_label;
+    lv_obj_t *shell_quick_panel;
+    lv_obj_t *shell_ip_btn;
+    lv_obj_t *shell_route_btn;
+    lv_obj_t *shell_usb_rndis_btn;
+    lv_obj_t *shell_usb_mtp_btn;
+    lv_obj_t *shell_usb_report_btn;
+    lv_obj_t *shell_service_log_btn;
+    lv_obj_t *shell_mem_btn;
+    lv_obj_t *shell_disk_btn;
+    lv_obj_t *shell_footer_panel;
+    lv_obj_t *shell_clear_btn;
+    lv_obj_t *shell_restart_btn;
+    lv_obj_t *shell_nav_back_btn;
+    lv_obj_t *net_header_panel;
+    lv_obj_t *net_mode_card;
+    lv_obj_t *net_mode_label;
+    lv_obj_t *net_detail_panel;
+    lv_obj_t *net_detail_label;
+    lv_obj_t *net_status_card;
+    lv_obj_t *net_status_label;
+    lv_obj_t *net_action_panel;
+    lv_obj_t *net_refresh_btn;
+    lv_obj_t *net_rndis_btn;
+    lv_obj_t *net_mtp_btn;
+    lv_obj_t *net_shell_btn;
+    lv_obj_t *net_nav_back_btn;
+    lv_obj_t *confirm;
+    lv_obj_t *confirm_title_label;
+    lv_obj_t *confirm_cancel_btn;
+    lv_obj_t *confirm_proceed_btn;
 } objects_t;
 
 extern objects_t objects;

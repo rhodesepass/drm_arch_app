@@ -1,5 +1,5 @@
-# 字库文件生成
+# Font File Generation
 
-默认生成 3500通用汉字+假名+英文数字符号+中文符号+明日方舟干员名所需要的所有汉字。
+By default, this generates the 3500 common Chinese characters, kana, English letters, digits, symbols, Chinese punctuation, and all Chinese characters required for Arknights operator names.
 
-请你通过特殊手段获取明日方舟的character_table.json，放到本目录。
+Obtain `character_table.json` for Arknights by your own means and place it in this directory.

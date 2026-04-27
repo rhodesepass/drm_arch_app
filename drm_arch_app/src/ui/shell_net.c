@@ -54,6 +54,7 @@ typedef struct {
     lv_timer_t *shell_timer;
     lv_timer_t *net_timer;
 
+    lv_obj_t *shell_runtime_root;
     lv_obj_t *shell_header;
     lv_obj_t *shell_status;
     lv_obj_t *shell_keyboard;
@@ -65,6 +66,7 @@ typedef struct {
     lv_obj_t *shell_restart_btn;
     lv_obj_t *shell_back_btn;
 
+    lv_obj_t *net_runtime_root;
     lv_obj_t *net_header;
     lv_obj_t *net_mode_card;
     lv_obj_t *net_status_card;
@@ -111,6 +113,20 @@ static uint64_t shell_net_now_ms(void)
 
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return ((uint64_t)ts.tv_sec * 1000ULL) + ((uint64_t)ts.tv_nsec / 1000000ULL);
+}
+
+static const char *usb_mode_name(usb_mode_t usb_mode)
+{
+    switch (usb_mode) {
+        case usb_mode_t_MTP:
+            return "mtp";
+        case usb_mode_t_SERIAL:
+            return "serial";
+        case usb_mode_t_RNDIS:
+            return "rndis";
+        default:
+            return "none";
+    }
 }
 
 static uint32_t mix_rgb(uint32_t a, uint32_t b, uint8_t b_weight)
@@ -254,8 +270,11 @@ static void shell_refresh_view(void)
         return;
     }
 
-    lv_textarea_set_text(g_shell_net.shell_terminal, g_shell_net.shell_transcript);
-    lv_textarea_set_cursor_pos(g_shell_net.shell_terminal, LV_TEXTAREA_CURSOR_LAST);
+    lv_label_set_text(g_shell_net.shell_terminal, g_shell_net.shell_transcript);
+    if (g_shell_net.shell_terminal_panel != NULL) {
+        lv_obj_update_layout(g_shell_net.shell_terminal_panel);
+        lv_obj_scroll_to_view(g_shell_net.shell_terminal, LV_ANIM_OFF);
+    }
     g_shell_net.shell_dirty = false;
 }
 
@@ -857,6 +876,7 @@ static void refresh_net_view(void)
     char status_card[256];
     char detail[2048];
     bool usb0_exists = false;
+    usb_mode_t requested_mode;
 
     requested[0] = '\0';
     status[0] = '\0';
@@ -866,7 +886,11 @@ static void refresh_net_view(void)
     rndis_host[0] = '\0';
     rndis_dev[0] = '\0';
 
-    read_trimmed_file("/run/epass/usb-mode-requested", requested, sizeof(requested));
+    settings_lock(&g_settings);
+    requested_mode = g_settings.usb_mode;
+    settings_unlock(&g_settings);
+
+    safe_strcpy(requested, sizeof(requested), usb_mode_name(requested_mode));
     read_trimmed_file("/run/epass/usb-mode-status", status, sizeof(status));
     read_trimmed_file("/run/epass/usb-mode-last-error", last_error, sizeof(last_error));
     read_trimmed_file("/run/epass/usb-mode-last-success", last_success, sizeof(last_success));
@@ -879,9 +903,6 @@ static void refresh_net_view(void)
     list_dir_entries("/sys/kernel/config/usb_gadget/g1/configs/c.1", config_functions, sizeof(config_functions), true);
     list_dir_entries("/sys/kernel/config/usb_gadget/g1/functions", gadget_functions, sizeof(gadget_functions), false);
 
-    if (requested[0] == '\0') {
-        safe_strcpy(requested, sizeof(requested), "mtp");
-    }
     if (status[0] == '\0') {
         safe_strcpy(status, sizeof(status), "unknown");
     }
@@ -1005,7 +1026,7 @@ static void shell_back_button_cb(lv_event_t *e)
         return;
     }
 
-    loadScreen(SCREEN_ID_SYSINFO2);
+    ui_pop_screen_transition(curr_screen_t_SCREEN_SYSINFO2);
 }
 
 static void net_refresh_button_cb(lv_event_t *e)
@@ -1023,6 +1044,10 @@ static void net_apply_usb_mode(usb_mode_t usb_mode)
     g_settings.usb_mode = usb_mode;
     settings_unlock(&g_settings);
     settings_update(&g_settings);
+    if (objects.usbmode_dropdown != NULL &&
+        lv_dropdown_get_selected(objects.usbmode_dropdown) != (uint32_t)usb_mode) {
+        lv_dropdown_set_selected(objects.usbmode_dropdown, (uint32_t)usb_mode);
+    }
     settings_set_usb_mode(usb_mode);
 }
 
@@ -1052,7 +1077,7 @@ static void net_shell_button_cb(lv_event_t *e)
         return;
     }
 
-    loadScreen(SCREEN_ID_SHELL);
+    ui_push_screen_transition(curr_screen_t_SCREEN_SHELL);
 }
 
 static void net_back_button_cb(lv_event_t *e)
@@ -1061,194 +1086,102 @@ static void net_back_button_cb(lv_event_t *e)
         return;
     }
 
-    loadScreen(SCREEN_ID_SYSINFO2);
+    ui_pop_screen_transition(curr_screen_t_SCREEN_SYSINFO2);
 }
 
-static lv_obj_t *create_action_button(lv_obj_t *parent, int x, int y, int w, int h, const char *text)
-{
-    lv_obj_t *button = lv_button_create(parent);
-    lv_obj_t *label;
-
-    lv_obj_set_pos(button, x, y);
-    lv_obj_set_size(button, w, h);
-    label = lv_label_create(button);
-    lv_label_set_text(label, text);
-    lv_obj_center(label);
-    lv_obj_set_style_text_font(label, &ui_font_sourcesans_reg_14, LV_PART_MAIN | LV_STATE_DEFAULT);
-    return button;
-}
-
-static void create_shell_screen_widgets(void)
+static void bind_shell_screen_widgets(void)
 {
     size_t i;
-    lv_obj_t *label;
+    lv_obj_t *quick_buttons[] = {
+        objects.shell_ip_btn,
+        objects.shell_route_btn,
+        objects.shell_usb_rndis_btn,
+        objects.shell_usb_mtp_btn,
+        objects.shell_usb_report_btn,
+        objects.shell_service_log_btn,
+        objects.shell_mem_btn,
+        objects.shell_disk_btn
+    };
 
-    lv_obj_clean(objects.shell_container);
+    g_shell_net.shell_runtime_root = objects.shell;
+    g_shell_net.shell_header = objects.shell_header_panel;
+    g_shell_net.shell_status = objects.shell_status_label;
+    g_shell_net.shell_keyboard = objects.shell_keyboard_label;
+    g_shell_net.shell_terminal_panel = objects.shell_terminal_panel;
+    g_shell_net.shell_terminal = objects.shell_terminal_label;
+    g_shell_net.shell_quick_panel = objects.shell_quick_panel;
+    g_shell_net.shell_footer = objects.shell_footer_panel;
+    g_shell_net.shell_clear_btn = objects.shell_clear_btn;
+    g_shell_net.shell_restart_btn = objects.shell_restart_btn;
+    g_shell_net.shell_back_btn = objects.shell_nav_back_btn;
 
-    g_shell_net.shell_header = lv_obj_create(objects.shell_container);
-    lv_obj_set_pos(g_shell_net.shell_header, 12, 12);
-    lv_obj_set_size(g_shell_net.shell_header, 336, 84);
-    lv_obj_set_scrollbar_mode(g_shell_net.shell_header, LV_SCROLLBAR_MODE_OFF);
-
-    label = lv_label_create(g_shell_net.shell_header);
-    lv_label_set_text(label, "Shell");
-    lv_obj_set_pos(label, 12, 6);
-    lv_obj_set_style_text_font(label, &ui_font_sourceselif_heavy_24, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    label = lv_label_create(g_shell_net.shell_header);
-    lv_label_set_text(label, "外接键盘可直接输入；没有键盘时，使用下方维护命令");
-    lv_obj_set_pos(label, 12, 36);
-    lv_obj_set_size(label, 310, LV_SIZE_CONTENT);
-    lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_font(label, &ui_font_sourcesans_reg_14, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    g_shell_net.shell_status = lv_label_create(g_shell_net.shell_header);
-    lv_label_set_text(g_shell_net.shell_status, "会话: 未运行");
-    lv_obj_set_pos(g_shell_net.shell_status, 12, 62);
-    lv_obj_set_style_text_font(g_shell_net.shell_status, &ui_font_sourcesans_reg_14, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    g_shell_net.shell_keyboard = lv_label_create(g_shell_net.shell_header);
-    lv_label_set_text(g_shell_net.shell_keyboard, "键盘: 未连接");
-    lv_obj_set_pos(g_shell_net.shell_keyboard, 168, 62);
-    lv_obj_set_style_text_font(g_shell_net.shell_keyboard, &ui_font_sourcesans_reg_14, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    g_shell_net.shell_terminal_panel = lv_obj_create(objects.shell_container);
-    lv_obj_set_pos(g_shell_net.shell_terminal_panel, 12, 108);
-    lv_obj_set_size(g_shell_net.shell_terminal_panel, 336, 308);
-    lv_obj_set_scrollbar_mode(g_shell_net.shell_terminal_panel, LV_SCROLLBAR_MODE_OFF);
-
-    g_shell_net.shell_terminal = lv_textarea_create(g_shell_net.shell_terminal_panel);
-    lv_obj_set_pos(g_shell_net.shell_terminal, 8, 8);
-    lv_obj_set_size(g_shell_net.shell_terminal, 320, 292);
-    lv_textarea_set_one_line(g_shell_net.shell_terminal, false);
-    lv_textarea_set_text(g_shell_net.shell_terminal, "");
-    lv_textarea_set_cursor_pos(g_shell_net.shell_terminal, LV_TEXTAREA_CURSOR_LAST);
-    lv_obj_set_style_text_font(g_shell_net.shell_terminal, &ui_font_sourcesans_reg_14, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_clear_flag(g_shell_net.shell_terminal, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_clear_flag(g_shell_net.shell_terminal, LV_OBJ_FLAG_CLICK_FOCUSABLE);
-
-    g_shell_net.shell_quick_panel = lv_obj_create(objects.shell_container);
-    lv_obj_set_pos(g_shell_net.shell_quick_panel, 12, 428);
-    lv_obj_set_size(g_shell_net.shell_quick_panel, 336, 136);
-    lv_obj_set_scrollbar_mode(g_shell_net.shell_quick_panel, LV_SCROLLBAR_MODE_OFF);
-
-    label = lv_label_create(g_shell_net.shell_quick_panel);
-    lv_label_set_text(label, "快捷操作");
-    lv_obj_set_pos(label, 12, 10);
-    lv_obj_set_style_text_font(label, &ui_font_sourcesans_reg_14, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    for (i = 0; i < sizeof(g_shell_quick_commands) / sizeof(g_shell_quick_commands[0]); i++) {
-        int x = (int)(12 + (i % 2) * 156);
-        int y = (int)(36 + (i / 2) * 24);
-
-        g_shell_quick_commands[i].button = create_action_button(
-            g_shell_net.shell_quick_panel,
-            x,
-            y,
-            146,
-            22,
-            g_shell_quick_commands[i].title
-        );
-        lv_obj_add_event_cb(
-            g_shell_quick_commands[i].button,
-            shell_command_button_cb,
-            LV_EVENT_PRESSED,
-            (void *)g_shell_quick_commands[i].command
-        );
+    if (g_shell_net.shell_terminal_panel != NULL) {
+        lv_obj_set_scrollbar_mode(g_shell_net.shell_terminal_panel, LV_SCROLLBAR_MODE_AUTO);
+    }
+    if (g_shell_net.shell_terminal != NULL) {
+        lv_obj_clear_flag(g_shell_net.shell_terminal, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_clear_flag(g_shell_net.shell_terminal, LV_OBJ_FLAG_CLICK_FOCUSABLE);
     }
 
-    g_shell_net.shell_footer = lv_obj_create(objects.shell_container);
-    lv_obj_set_pos(g_shell_net.shell_footer, 12, 574);
-    lv_obj_set_size(g_shell_net.shell_footer, 336, 54);
-    lv_obj_set_scrollbar_mode(g_shell_net.shell_footer, LV_SCROLLBAR_MODE_OFF);
+    for (i = 0; i < sizeof(g_shell_quick_commands) / sizeof(g_shell_quick_commands[0]); i++) {
+        g_shell_quick_commands[i].button = quick_buttons[i];
+        if (g_shell_quick_commands[i].button != NULL) {
+            lv_obj_add_event_cb(
+                g_shell_quick_commands[i].button,
+                shell_command_button_cb,
+                LV_EVENT_PRESSED,
+                (void *)g_shell_quick_commands[i].command
+            );
+        }
+    }
 
-    g_shell_net.shell_clear_btn = create_action_button(g_shell_net.shell_footer, 12, 7, 98, 40, "清屏");
-    lv_obj_add_event_cb(g_shell_net.shell_clear_btn, shell_clear_button_cb, LV_EVENT_PRESSED, NULL);
-
-    g_shell_net.shell_restart_btn = create_action_button(g_shell_net.shell_footer, 119, 7, 98, 40, "重开");
-    lv_obj_add_event_cb(g_shell_net.shell_restart_btn, shell_restart_button_cb, LV_EVENT_PRESSED, NULL);
-
-    g_shell_net.shell_back_btn = create_action_button(g_shell_net.shell_footer, 226, 7, 98, 40, "返回");
-    lv_obj_add_event_cb(g_shell_net.shell_back_btn, shell_back_button_cb, LV_EVENT_PRESSED, NULL);
+    if (g_shell_net.shell_clear_btn != NULL) {
+        lv_obj_add_event_cb(g_shell_net.shell_clear_btn, shell_clear_button_cb, LV_EVENT_PRESSED, NULL);
+    }
+    if (g_shell_net.shell_restart_btn != NULL) {
+        lv_obj_add_event_cb(g_shell_net.shell_restart_btn, shell_restart_button_cb, LV_EVENT_PRESSED, NULL);
+    }
+    if (g_shell_net.shell_back_btn != NULL) {
+        lv_obj_add_event_cb(g_shell_net.shell_back_btn, shell_back_button_cb, LV_EVENT_PRESSED, NULL);
+    }
 }
 
-static void create_net_screen_widgets(void)
+static void bind_net_screen_widgets(void)
 {
-    lv_obj_t *label;
+    g_shell_net.net_runtime_root = objects.net;
+    g_shell_net.net_header = objects.net_header_panel;
+    g_shell_net.net_mode_card = objects.net_mode_card;
+    g_shell_net.net_status_card = objects.net_status_card;
+    g_shell_net.net_mode = objects.net_mode_label;
+    g_shell_net.net_status = objects.net_status_label;
+    g_shell_net.net_detail_panel = objects.net_detail_panel;
+    g_shell_net.net_detail = objects.net_detail_label;
+    g_shell_net.net_action_panel = objects.net_action_panel;
+    g_shell_net.net_refresh_btn = objects.net_refresh_btn;
+    g_shell_net.net_rndis_btn = objects.net_rndis_btn;
+    g_shell_net.net_mtp_btn = objects.net_mtp_btn;
+    g_shell_net.net_shell_btn = objects.net_shell_btn;
+    g_shell_net.net_back_btn = objects.net_nav_back_btn;
 
-    lv_obj_clean(objects.net_container);
+    if (g_shell_net.net_detail_panel != NULL) {
+        lv_obj_set_scrollbar_mode(g_shell_net.net_detail_panel, LV_SCROLLBAR_MODE_AUTO);
+    }
 
-    g_shell_net.net_header = lv_obj_create(objects.net_container);
-    lv_obj_set_pos(g_shell_net.net_header, 12, 12);
-    lv_obj_set_size(g_shell_net.net_header, 336, 72);
-    lv_obj_set_scrollbar_mode(g_shell_net.net_header, LV_SCROLLBAR_MODE_OFF);
-
-    label = lv_label_create(g_shell_net.net_header);
-    lv_label_set_text(label, "网络 / USB");
-    lv_obj_set_pos(label, 12, 6);
-    lv_obj_set_style_text_font(label, &ui_font_sourceselif_heavy_24, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    label = lv_label_create(g_shell_net.net_header);
-    lv_label_set_text(label, "查看 RNDIS 链路、地址、路由和 gadget 状态，并直接切换 USB 模式");
-    lv_obj_set_pos(label, 12, 40);
-    lv_obj_set_size(label, 312, LV_SIZE_CONTENT);
-    lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_font(label, &ui_font_sourcesans_reg_14, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    g_shell_net.net_mode_card = lv_obj_create(objects.net_container);
-    lv_obj_set_pos(g_shell_net.net_mode_card, 12, 96);
-    lv_obj_set_size(g_shell_net.net_mode_card, 162, 76);
-    lv_obj_set_scrollbar_mode(g_shell_net.net_mode_card, LV_SCROLLBAR_MODE_OFF);
-
-    g_shell_net.net_mode = lv_label_create(g_shell_net.net_mode_card);
-    lv_label_set_text(g_shell_net.net_mode, "请求模式\nmtp\n\n应用结果\nunknown");
-    lv_obj_set_pos(g_shell_net.net_mode, 10, 8);
-    lv_obj_set_size(g_shell_net.net_mode, 142, LV_SIZE_CONTENT);
-    lv_label_set_long_mode(g_shell_net.net_mode, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_font(g_shell_net.net_mode, &ui_font_sourcesans_reg_14, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    g_shell_net.net_status_card = lv_obj_create(objects.net_container);
-    lv_obj_set_pos(g_shell_net.net_status_card, 186, 96);
-    lv_obj_set_size(g_shell_net.net_status_card, 162, 76);
-    lv_obj_set_scrollbar_mode(g_shell_net.net_status_card, LV_SCROLLBAR_MODE_OFF);
-
-    g_shell_net.net_status = lv_label_create(g_shell_net.net_status_card);
-    lv_label_set_text(g_shell_net.net_status, "链路状态\nusb0 未发现");
-    lv_obj_set_pos(g_shell_net.net_status, 10, 8);
-    lv_obj_set_size(g_shell_net.net_status, 142, LV_SIZE_CONTENT);
-    lv_label_set_long_mode(g_shell_net.net_status, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_font(g_shell_net.net_status, &ui_font_sourcesans_reg_14, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    g_shell_net.net_detail_panel = lv_obj_create(objects.net_container);
-    lv_obj_set_pos(g_shell_net.net_detail_panel, 12, 184);
-    lv_obj_set_size(g_shell_net.net_detail_panel, 336, 288);
-
-    g_shell_net.net_detail = lv_label_create(g_shell_net.net_detail_panel);
-    lv_obj_set_pos(g_shell_net.net_detail, 10, 10);
-    lv_obj_set_size(g_shell_net.net_detail, 316, LV_SIZE_CONTENT);
-    lv_label_set_long_mode(g_shell_net.net_detail, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_font(g_shell_net.net_detail, &ui_font_sourcesans_reg_14, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_label_set_text(g_shell_net.net_detail, "loading...");
-
-    g_shell_net.net_action_panel = lv_obj_create(objects.net_container);
-    lv_obj_set_pos(g_shell_net.net_action_panel, 12, 484);
-    lv_obj_set_size(g_shell_net.net_action_panel, 336, 144);
-    lv_obj_set_scrollbar_mode(g_shell_net.net_action_panel, LV_SCROLLBAR_MODE_OFF);
-
-    g_shell_net.net_refresh_btn = create_action_button(g_shell_net.net_action_panel, 12, 18, 98, 40, "刷新");
-    lv_obj_add_event_cb(g_shell_net.net_refresh_btn, net_refresh_button_cb, LV_EVENT_PRESSED, NULL);
-
-    g_shell_net.net_rndis_btn = create_action_button(g_shell_net.net_action_panel, 119, 18, 98, 40, "切 RNDIS");
-    lv_obj_add_event_cb(g_shell_net.net_rndis_btn, net_rndis_button_cb, LV_EVENT_PRESSED, NULL);
-
-    g_shell_net.net_mtp_btn = create_action_button(g_shell_net.net_action_panel, 226, 18, 98, 40, "切 MTP");
-    lv_obj_add_event_cb(g_shell_net.net_mtp_btn, net_mtp_button_cb, LV_EVENT_PRESSED, NULL);
-
-    g_shell_net.net_shell_btn = create_action_button(g_shell_net.net_action_panel, 12, 78, 152, 40, "进入 Shell");
-    lv_obj_add_event_cb(g_shell_net.net_shell_btn, net_shell_button_cb, LV_EVENT_PRESSED, NULL);
-
-    g_shell_net.net_back_btn = create_action_button(g_shell_net.net_action_panel, 172, 78, 152, 40, "返回");
-    lv_obj_add_event_cb(g_shell_net.net_back_btn, net_back_button_cb, LV_EVENT_PRESSED, NULL);
+    if (g_shell_net.net_refresh_btn != NULL) {
+        lv_obj_add_event_cb(g_shell_net.net_refresh_btn, net_refresh_button_cb, LV_EVENT_PRESSED, NULL);
+    }
+    if (g_shell_net.net_rndis_btn != NULL) {
+        lv_obj_add_event_cb(g_shell_net.net_rndis_btn, net_rndis_button_cb, LV_EVENT_PRESSED, NULL);
+    }
+    if (g_shell_net.net_mtp_btn != NULL) {
+        lv_obj_add_event_cb(g_shell_net.net_mtp_btn, net_mtp_button_cb, LV_EVENT_PRESSED, NULL);
+    }
+    if (g_shell_net.net_shell_btn != NULL) {
+        lv_obj_add_event_cb(g_shell_net.net_shell_btn, net_shell_button_cb, LV_EVENT_PRESSED, NULL);
+    }
+    if (g_shell_net.net_back_btn != NULL) {
+        lv_obj_add_event_cb(g_shell_net.net_back_btn, net_back_button_cb, LV_EVENT_PRESSED, NULL);
+    }
 }
 
 void ui_shell_net_init(void)
@@ -1257,8 +1190,8 @@ void ui_shell_net_init(void)
     g_shell_net.shell_fd = -1;
     g_shell_net.shell_pid = -1;
 
-    create_shell_screen_widgets();
-    create_net_screen_widgets();
+    bind_shell_screen_widgets();
+    bind_net_screen_widgets();
 
     g_shell_net.shell_timer = lv_timer_create(shell_timer_cb, 80, NULL);
     g_shell_net.net_timer = lv_timer_create(net_timer_cb, 250, NULL);
@@ -1359,10 +1292,7 @@ void ui_shell_net_refresh_theme(void)
     set_common_panel_style(g_shell_net.net_action_panel, panel, panel_strong);
 
     if (g_shell_net.shell_terminal != NULL) {
-        lv_obj_set_style_bg_color(g_shell_net.shell_terminal, lv_color_hex(terminal & 0x00FFFFFFu), LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_bg_opa(g_shell_net.shell_terminal, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
         lv_obj_set_style_text_color(g_shell_net.shell_terminal, lv_color_hex(text & 0x00FFFFFFu), LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_border_width(g_shell_net.shell_terminal, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     }
 
     set_button_style(g_shell_net.shell_clear_btn, panel_strong, text);
